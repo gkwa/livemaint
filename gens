@@ -743,10 +743,10 @@ rm -rf $dir/o
 
 deploy_brach='LS_Stable_v3.0'
 
-branchname=$(git symbolic-ref HEAD | awk -F/ '{print $3}')
+branchname=$(git symbolic-ref --short HEAD)
 [ $branchname != 'LS_Stable_v3.0' ] && git checkout LS_Stable_v3.0
 
-branchname=$(git symbolic-ref HEAD | awk -F/ '{print $3}')
+branchname=$(git symbolic-ref --short HEAD)
 [ $branchname != 'LS_Stable_v3.0' ] && {
 	echo "help!  I cant checkout $deploy_branch, quitting..."
 	exit 1
