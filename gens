@@ -753,7 +753,7 @@ branchname=$(git symbolic-ref HEAD | awk -F/ '{print $3}')
 }
 
 {
-    git dcno a6282d9~1.. | xargs ls -t1 2>/dev/null
+    git dcno 842c436.. | xargs ls -t1 2>/dev/null
 } | cpio -pamvd $dir/o
 
 cd $dir
