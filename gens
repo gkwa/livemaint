@@ -1,0 +1,2052 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; mode: python; -*-
+
+# usage example: gens -s && gens -f23
+
+from jinja2 import Template
+from jinja2 import Environment
+from jinja2.loaders import FileSystemLoader
+
+import argparse
+import ConfigParser
+import shutil
+import os
+
+env = Environment(loader=FileSystemLoader('tmpl'))
+
+if not os.path.exists('config.ini'):
+    print 'Quitting.  First create ./config.ini from this page https://docs.google.com/a/streambox.com/spreadsheet/ccc?key=0Al4-wBwe2wygdEI1QXpGRGRSVXZFMXYzb3BfZVVfNmc&usp=drive_web#gid=10'
+    exit(1)
+
+config = ConfigParser.RawConfigParser()
+config.read(os.path.join( os.path.dirname(os.path.realpath(__file__)), 'config.ini'))
+
+##############################
+
+def deleteSSHKeysDeploymentMistake():
+
+    scrbase='delete_ssh_keys_from_production_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+unset HISTFILE
+
+if test -d /c/Apache/htdocs/ls/health_monitor/sshWork
+then
+	rm -r /c/Apache/htdocs/ls/health_monitor/sshWork
+fi
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --verbose --jobs 10 --no-notice sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+	{% for server in servers %}echo "############### {{server}} ##################"
+	cat {{scrbase}}_{{server}}.log
+	{% endfor %}
+
+} >{{alllog}}
+
+""").stream(
+    scrbase=scrbase,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh %s &" %  all
+
+##############################
+
+def timeDiffCheck():
+
+    scrbase='time_diff_check_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+if test -z "$(env | grep WINDIR)"
+then
+    # Linux
+    timedatectl
+    grep `date +%Z` /etc/timezone # timzone
+    /usr/bin/ntpq -p
+else
+    # Windows
+    # w32tm /stripchart /computer:time.windows.com /samples:10 /dataonly
+    powershell -executionpolicy bypass -command '[System.TimeZone]::CurrentTimeZone | Format-List'
+    # tzutil /g # get timezone
+    w32tm /stripchart /computer:time.nist.gov /samples:2 /dataonly
+fi
+
+""").stream().dump(scr)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	dos2unix --quiet {{scrBase}}_{{server}}.log
+	cat {{scrbase}}_{{server}}.log | sed -e 's,^,{{server}} ,'
+    {% endfor %}
+
+} >{{alllog}}
+dos2unix --quiet {{alllog}}
+
+""").stream(
+    alllog="%s_all.log" % scrbase,
+    scrbase=scrbase,
+    servers=servers).dump(all)
+
+    print "sh %s" %  all
+
+##############################
+
+def checkHTTP2DirectoryForSpaceUsage():
+
+    scrbase='check_http2_dir_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+dir=/c/Apache/htdocs/ls/http2
+if test -d $dir
+then
+        ugly=$(du $dir | awk '{print $1}')
+        pretty=$(du -sh $dir | awk '{print $1}')
+        printf "%s,%s,%s" $ugly $pretty $dir
+fi
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --verbose --progress --jobs 10 --no-notice sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {
+	{% for server in servers %}
+	    cat {{scrbase}}_{{server}}.log | sed -e 's,$,\\,{{server}},'
+	{% endfor %}
+    } | sort -rn | awk -F, '{printf "%5s%15s%30s\\n",$2,$4,$3}'
+
+} >{{alllog}}
+
+""").stream(
+    scrbase=scrbase,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh %s" %  all
+
+##############################
+
+def checkFreeDriveSpace():
+
+    scrbase='check_free_drive_space_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+if test ! -z "$(uname -s|grep CYGWIN)"
+then
+	# Windows
+	[ -d /d ] && df -h /c /d
+	[ -d /e ] && df -h /c /e
+else
+	# Linux
+	df -h
+fi
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --verbose --progress --jobs 10 --no-notice sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+	{% for server in servers %}echo "############### {{server}} ##################"
+	cat {{scrbase}}_{{server}}.log
+	{% endfor %}
+} >{{alllog}}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh %s" %  all
+
+##############################
+
+def timeResync():
+
+    scrbase='time_resync_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+cmd /c start /WAIT /D "c:\Windows\System32" w32tm /resync
+cmd /c start /WAIT /D "c:\Windows\System32" w32tm /resync
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def getSpecialPollInterval():
+
+     scrbase='checkSpecialPollInterval_autogen'
+     scr=scrbase + '.sh'
+     Template("""
+
+if test ! -z "$(uname -s|grep CYGWIN)"
+then
+	# Windows
+	reg query 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Parameters'
+	reg query 'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\W32Time\TimeProviders\NtpClient' /v SpecialPollInterval
+fi
+
+""").stream().dump(scr)
+
+     all=scrbase + '_all.sh'
+     Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+
+         scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+     for server in servers:
+         t=Template("%s_{{server}}.sh" % (scrbase))
+         Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+     print "sh -x %s" % all
+
+##############################
+
+def mysqlShowTAGsTableSchema():
+
+    # FIXME: parameterize this in makefile
+    sls_php_pass='set password here'
+
+    scrbase='mysqlShowTAGsTableSchema_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+unset HISTFILE
+
+mysql -h127.0.0.1 -Dstreambox_live -usls_php -p'{{sls_php_pass}}' -e 'show columns from tag'
+
+""").stream(sls_php_pass=sls_php_pass).dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def getTime():
+
+    scrTmplFile='get_time_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {
+        {% for server in servers %}
+		cat {{scrBase}}_{{server}}.log | sed -e 's,$,	{{server}},'
+        {% endfor %}
+    } | sort -rn | awk -F'\\t' '{printf "%-11s %s\\n",$3,$2}'
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def showFirewall():
+
+    scrTmplFile='show_firewall_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+    {
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+    } | sed -e 's,^,{{server}} ,'
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def apacheTailLog():
+
+    scrTmplFile='apacheTailLog_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(server=server).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# server:{{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+def ssh_check_auth_type():
+
+    scrTmplFile='ssh_check_auth_type_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(server=server).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# server:{{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def apacheEnableLogging():
+
+    scrTmplFile='apacheEnableLogging_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def mySQLAdminFlushHosts():
+
+    scrTmplFile='mySQLAdminFlushHosts_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def mySQLCheckConnectivity():
+
+    import itertools
+    from pprint import pprint
+
+    scrTmplFile='mysql_check_connectivity_autogen.sh' #Fixme!  we don't actually use this file, we have an inline template below
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    permlist=[]
+    with open('servers.txt') as f:
+        servers = f.readlines()
+        servers = [x.strip('\n') for x in servers]
+        permlist = list(itertools.permutations(servers,2))
+
+    script_list=[]
+    for server_pair in permlist:
+        s1=server_pair[0]
+        s2=server_pair[1]
+        scrname_tmpl=Template("{{scrBase}}_{{server1}}_to_{{server2}}_autogen.sh")
+        scrname_controller_tmpl=Template("mysql_check_from_{{server1}}_to_{{server2}}_controller_autogen.sh")
+        mysql_check_tmpl=Template("""#!/bin/sh
+unset HISTFILE
+set +o errexit
+mysql --table -u{{mysql_user}} -p'{{mysql_user_pass}}' -D{{database}} -h{{server2}}.streambox.com -e 'SELECT * FROM slsconfig LIMIT 1' 2>&1 |
+grep -v 'Warning: Using a password on the command line interface can be insecure.'
+""")
+        mysql_check_tmpl.stream(
+            mysql_user='sls_repl',mysql_user_pass=config.get(s2,'mysql_sls_repl_pass'),
+            database='streambox_live',
+            server1=s1,
+            server2=s2).dump(scrname_tmpl.render(scrBase=scrBase,server1=s1,server2=s2))
+
+        Template("""
+scp {{script}} {{server1}}:/tmp
+ssh {{server1}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{script}}.log 2>&1
+dos2unix --quiet {{script}}.log
+""").stream(server1=s1,script=scrname_tmpl.render(scrBase=scrBase,server1=s1,server2=s2)).dump(scrname_controller_tmpl.render(server1=s1,server2=s2))
+        script_list.append(scrname_controller_tmpl.render(server1=s1,server2=s2))
+
+    Template("""
+
+time parallel --progress --jobs 20 --no-notice --verbose sh ::: \\
+{% for script in script_list %}{{script}}{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    for log in `ls *.log | grep -v {{allLogFile}}`
+    do
+        echo $log
+        cat $log
+        echo
+    done
+
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(scrBase=scrBase,allLogFile=allLogFile,script_list=script_list).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def mySQLCheckReplicationCheckTable():
+
+    scrTmplFile='mySQLCheckReplicationCheckTable_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(scrBase=scrBase,mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def createPHPDeploymentScript():
+
+    scrbase='create_deployment_script_autogen'
+    scr1=scrbase + '.sh'
+    Template("""
+
+# fail if we get error
+set -o errexit
+
+dir=`pwd`
+cd /Users/demo/Documents/git_clone_svn_ls &&
+rm -rf $dir/o
+
+deploy_brach='LS_Stable_v3.0'
+
+branchname=$(git symbolic-ref HEAD | awk -F/ '{print $3}')
+[ $branchname != 'LS_Stable_v3.0' ] && git checkout LS_Stable_v3.0
+
+branchname=$(git symbolic-ref HEAD | awk -F/ '{print $3}')
+[ $branchname != 'LS_Stable_v3.0' ] && {
+	echo "help!  I cant checkout $deploy_branch, quitting..."
+	exit 1
+}
+
+{
+    git dcno a6282d9~1.. | xargs ls -t1 2>/dev/null
+} | cpio -pamvd $dir/o
+
+cd $dir
+tar cf o.tar o
+zip -9 o.tar.zip o.tar
+du -sh o.tar.zip
+
+""").stream().dump(scr1)
+
+    scrbase='deploy_autogen'
+    scr2=scrbase + '.sh'
+    Template("""
+
+set -o errexit
+
+cd /tmp
+
+# rm -f o.tar.zip
+rm -f o.tar
+rm -rf o
+
+unzip o.tar.zip
+tar mxf o.tar
+robocopy o c:/ /e /s /w:1 /r:1
+
+rm -f o.tar.zip
+rm -f o.tar
+rm -rf o
+
+""").stream().dump(scr2)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr2,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} o.tar.zip {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -rf /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrbase}}_{{server}}.log
+
+""").stream(script=scr2,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s && sh -x %s" % (scr1,all)
+
+##############################
+
+def restartMySQLService():
+
+    scrbase='restart_mysql_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+unset HISTFILE
+
+# restart mysql on windows
+env | grep WINDIR >/dev/null && net stop mysql
+env | grep WINDIR >/dev/null && net start mysql
+
+# restart mysql on linux
+env | grep WINDIR >/dev/null || sudo service mysql restart
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -rf /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % (all)
+
+##############################
+
+def updatedb():
+
+    scrbase='run_updatedb_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+unset HISTFILE
+
+if test -z "$(env | grep WINDIR)"
+then
+	# Linux
+	sudo updatedb
+else
+	# Windows
+	[ -d /d ] && updatedb --localpaths='/c /d'
+	[ -d /e ] && updatedb --localpaths='/c /e'
+fi
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -rf /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh %s &" % (all)
+
+##############################
+
+
+def mySQLShowTagsTable():
+
+    sls_php_pass='set password here'
+
+    scrbase='mysql_select_from_tag_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+unset HISTFILE
+mysql -h127.0.0.1 -Dstreambox_live -usls_php -p'{{sls_php_pass}}' -e 'SELECT tag_id,tag FROM tag WHERE tag_id=1316561'
+""").stream(sls_php_pass=sls_php_pass).dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+	{% for server in servers %}echo "# {{server}}"
+	cat {{scrbase}}_{{server}}.log
+	{% endfor %}
+} >{{scrbase}}_all.log
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""scp {{script}} {{server}}:/tmp
+    ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+    """).stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def metaCheck():
+    scrTmplFile='mysql_find_mysql_metadata_from_tag_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+def getMySQLServerVersion():
+
+    sls_php_pass='set password here'
+
+    scrbase='get_mysql_server_version_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+unset HISTFILE
+
+mysql -h127.0.0.1 -Dstreambox_live -usls_php -p'{{sls_php_pass}}' -e 'SHOW VARIABLES LIKE "%version%";'
+
+""").stream(sls_php_pass=sls_php_pass).dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+	{% for server in servers %}echo "# {{server}}"
+	cat {{scrbase}}_{{server}}.log
+	{% endfor %}
+} >{{scrbase}}_all.log
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def restartMachine():
+
+    scrbase='restart_machine_autogen'
+    scr=scrbase + '.sh'
+    Template("""#!/bin/sh
+
+if test -z "$(env | grep WINDIR)"
+then
+	# Linux
+	sudo reboot now
+else
+
+	# Windows
+	shutdown -t 0 -r -f
+fi
+
+    """).stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+{
+	ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}'
+} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def insertToMySQLTagsTable():
+
+
+    # FIXME: parameterize this in makefile
+    root_pass='set password here'
+
+    sql_scr='maintenance.sql'
+    Template("""
+
+-- http://stackoverflow.com/questions/20971680/sql-server-insert-if-not-exist
+
+SELECT 'searching for primary key 1316561' AS ' ';
+SELECT * FROM `tag` WHERE `tag_id` ='1316561'  ORDER BY `tag_id`;
+
+SELECT 'deleting records from tag where tag_id=1316561' AS ' ';
+DELETE FROM tag WHERE `tag_id` ='1316561';
+
+SELECT 'searching for primary key 1316561' AS ' ';
+SELECT * FROM `tag` WHERE `tag_id` ='1316561'  ORDER BY `tag_id`;
+
+SELECT 'inserting record with primary key 1316561' AS ' ';
+INSERT INTO tag (`tag_id`,`tag`) VALUES (1316561,'not initialized')
+        ON DUPLICATE KEY UPDATE `tag_id` = `tag_id`; -- this keeps the tag_id what it was (no change to the table)
+
+SELECT 'searching for primary key 1316561' AS ' ';
+SELECT * FROM `tag` WHERE `tag_id` ='1316561'  ORDER BY `tag_id`;
+
+""").stream().dump(sql_scr)
+
+    scrbase='mysql_insert_record_to_tags_table_autogen'
+    scr=scrbase + '.sh'
+
+    Template("""
+
+unset HISTFILE
+mysql -h127.0.0.1 -Dstreambox_live -uroot -p'{{root_pass}}' </tmp/{{ sql_scr }}
+
+""").stream(root_pass=root_pass,sql_scr=sql_scr).dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{sql_scr}} {{server}}:/tmp
+{
+	ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}} /tmp/{{sql_scr}}'
+} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,sql_scr=sql_scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def mySQLCheckTransporterTable():
+
+    scrTmplFile='get_mysql_trasporter_table_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(scrBase=scrBase,mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def mySQLDumpStreamboxLiveToFile():
+
+    scrTmplFile='mysqldump_streambox_live_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(database='streambox_live',scrBase=scrBase,mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def mySQLImportStreamboxLiveDBFromFile():
+
+    scrTmplFile='mysqldump_import_streambox_live_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh -x /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(database='streambox_live',mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{ {% for server in servers %}
+    echo "# {{server}}"
+    cat {{scrBase}}_{{server}}.log
+    echo
+  {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print """
+    ####################################
+    # DANGER, ONLY RUN THIS IN SANDBOX, it will drop streambox_live database!
+    ####################################
+    """
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def mySQLCheckUUID():
+
+    scrTmplFile='mysql_check_UUID_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{ {% for server in servers %}
+    { printf "%15s:" {{server}}; cat {{scrBase}}_{{server}}.log; } |
+    sort -t: -k1
+  {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def mySQLCheckUUID2():
+
+    scrTmplFile='mysql_check_UUID2_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{ {% for server in servers %}
+    { printf "%15s:" {{server}}; cat {{scrBase}}_{{server}}.log; } |
+    sort -t: -k1
+  {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def mySQLShowSlaveStatus():
+
+    scrTmplFile='mysql_mysqlshowslavestatus_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{ {% for server in servers %}
+    echo "# {{server}}"
+    cat {{scrBase}}_{{server}}.log
+    echo
+  {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh -x %s" % allScr
+
+##############################
+
+def restartSLS():
+
+    scrbase='restart_slsservice_autogen'
+    scr=scrbase + '.sh'
+
+    Template("""
+
+unset HISTFILE
+
+net stop slservice_db
+taskkill /f /im sls.exe 2>/dev/null #just to be sure
+taskkill /f /im sls.exe 2>/dev/null #just to be sure
+net start slservice_db
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+scp {{script}} {{server}}:/tmp
+{
+    ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}'
+} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def restartApacheService():
+
+    scrbase='restartApacheService_autogen'
+    scr=scrbase + '.sh'
+
+    Template("""
+
+unset HISTFILE
+
+if test -z "$(env | grep WINDIR)"
+then
+    # Linux
+    sudo service httpd restart
+
+else
+    # Windows
+
+    # I don't necessarily know the name of the apache service
+    # (apache2.4, apache2.5, etc.), so find it:
+
+    sc query state= all |
+        grep -i apache |
+        while read fieldname service
+        do
+        net stop $service
+        net start $service
+        break
+    done
+fi
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+{
+	ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}'
+} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def slsserverXMLDownload():
+
+    scrbase='slsserver_xml_files_download_autogen'
+    scr=scrbase + '.sh'
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+log={{scrbase}}_{{server}}.log
+xml=slsserver_autogen_{{server}}.xml
+
+{
+    scp {{server}}:/c/sls_db/slsserver.xml $xml||:
+} >$log 2>&1
+
+[ -f $xml ] &&
+tidy -xml \\
+	-q \\
+	-i \\
+	-c \\
+	--tidy-mark no \\
+	--doctype strict \\
+	--vertical-space true \\
+	--indent-attributes true \\
+	--force-output true \\
+	--wrap-attributes false \\
+	-wrap 60000 \\
+	-modify \\
+	$xml
+
+    """).stream(scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    print "sh -x %s" % all
+
+##############################
+
+def slsserverXMLUpload():
+
+    scrbase='slsserver_xml_files_upload_autogen'
+    scr=scrbase + '.sh'
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+if test ! -f slsserver_autogen_{{server}}.xml
+then
+    echo error, cant find slsserver_autogen_{{server}}.xml, quitting...
+    exit 1
+else
+    tidy -xml --tidy-mark no --doctype strict --vertical-space true \
+    --force-output true --wrap-attributes false -wrap 60000 -q -i -c -modify slsserver_autogen_{{server}}.xml
+    scp slsserver_autogen_{{server}}.xml {{server}}:/c/sls_db/slsserver.xml
+fi
+
+""").stream(server=server).dump(t.render(server=server))
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    print "sh -x %s" % all
+
+##############################
+
+def enableNTPDebug():
+
+    scrbase='enable_debug_ntp_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+reg add 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Config' /f /t REG_DWORD /v FileLogSize /d 10000000
+reg add 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\W32Time\Config' /f /t REG_SZ /v FileLogName /d 'C:\Windows\Temp\w32time.log'
+cd 'C:\Windows\system32'
+net stop w32time
+net start w32time
+sc config W32Time start= auto
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def clearBashHistory():
+
+    scrbase='clear_bash_history_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+# http://askubuntu.com/questions/191999/how-to-clear-bash-history-completely
+
+cat /dev/null > ~/.bash_history
+history -c
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+def phpINIDownload():
+
+    scrbase='php_ini_download_autogen'
+    scr=scrbase + '.sh'
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+scp {{server}}:/c/php/php.ini php_ini_autogen_{{server}}.ini||: >{{scrbase}}_{{server}}.log 2>&1
+""").stream(scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    print "sh -x %s" % all
+
+##############################
+
+def slsRestartRerviceCmdDownload():
+
+    scrbase='slsRestartRerviceCmdDownload()_autogen'
+    scr=scrbase + '.sh'
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+scp {{server}}:/c/sls_db/sls-restart-service.cmd sls-restart-service_autogen_{{server}}.cmd||: >{{scrbase}}_{{server}}.log 2>&1
+""").stream(scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    print "sh -x %s" % all
+
+##############################
+
+def phpINIUpload():
+
+    scrbase='php_ini_upload_autogen'
+    scr=scrbase + '.sh'
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+# only upload if local ini exists
+if test ! -f php_ini_autogen_{{server}}.ini
+then
+    echo no php_ini_autogen_{{server}}.ini to upload
+else
+    # make backup
+    d=$(date +%Y%M%d%H%M%s)
+    ssh {{server}} cp /c/php/php.ini /c/php/php.ini.$d
+    scp php_ini_autogen_{{server}}.ini {{server}}:/c/php/php.ini
+fi
+
+""").stream(scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    alllog=all + '.log',
+    servers=servers).dump(all)
+
+    print "sh -x %s" % all
+
+##############################
+
+def downloadMySQLConf():
+    scrbase='download_mysql_my_ini_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+cat << __EOT__ >/tmp/download_mysql_my_ini_autogen_cleanup.sh
+cd /tmp
+
+if test -z "$(uname -s|grep CYGWIN)"
+then
+    # Linux
+    zip --help >/dev/null || { sudo apt-get update && sudo apt-get install -y zip; }
+    sudo rm -rf o
+    sudo rm -f o.tar
+    sudo rm -f o.tar.zip
+else
+    # Windows
+    rm -rf o
+    rm -f o.tar
+    rm -f o.tar.zip
+fi
+__EOT__
+
+cd /tmp
+
+if test -z "$(uname -s|grep CYGWIN)"
+then
+	# Linux
+	sudo sh -x /tmp/download_mysql_my_ini_autogen_cleanup.sh
+	locate -ir '\(my.ini\|my.cnf\|auto.cnf\)$' | sudo cpio -pamvd o
+	sudo chmod -R 777 o
+	sudo tar cf o.tar o
+	sudo zip -9 o.tar.zip o.tar
+else
+	# Windows
+	sh -x /tmp/download_mysql_my_ini_autogen_cleanup.sh
+	locate -ir '\(my.ini\|my.cnf\|auto.cnf\)$' | grep -vF Recycle.Bin | cpio -pamvd o
+	tar cf o.tar o
+	zip -9 o.tar.zip o.tar
+fi
+
+
+rm -f /tmp/{{scr}}
+""").stream(scr=scr).dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+# ssh {{server}} 'sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1; rm -f /tmp/{{script}}'
+# debug leave script behind
+ssh {{server}} 'sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1;'
+scp {{server}}:/tmp/o.tar.zip {{server}}_o_autogen.tar.zip
+ssh {{server}} 'sh /tmp/download_mysql_my_ini_autogen_cleanup.sh 2>&1; rm -f /tmp/download_mysql_my_ini_autogen_cleanup.sh'
+7z x -o{{server}}_autogen {{server}}_o_autogen.tar.zip >/dev/null
+(cd {{server}}_autogen && tar xf o.tar && rm -f o.tar)
+rm -f {{server}}_o_autogen.tar.zip
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    scrbase='summarize_my_ini_autogen'
+    src1=scrbase + '.sh'
+    Template("""
+
+# find . \( -iname my.ini -o -name 'my.cnf' \) | grep -vi pdev | while read f; do echo $f; cat "$f" | perl -ne 'if(/_BEGIN/../_END/){print;}'; echo; echo; done;
+
+{
+find . \( -iname my.ini -o -name 'my.cnf' \) |
+    grep -vi pdev |
+    while read f;
+    do
+	echo $f
+	perl -ne 'if(/_BEGIN/../_END/){print;}' "$f"
+
+	echo
+	echo
+    done;
+} >{{scrbase}}_find_out_autogen.txt
+
+csplit_prefix={{scrbase}}_autogen_csplit_
+
+csplit -f $csplit_prefix -n 6 -sk {{scrbase}}_find_out_autogen.txt '/^\.\//' '{99999999}'
+dos2unix --quiet $csplit_prefix*
+
+# View 1
+tmp=$IFS
+IFS=':'
+grep '^server-id = ' ${csplit_prefix}* | grep -vi replicate |
+sort -n -k2 -t= | while read file sort
+do
+#    echo "file:$file, sort:$sort"
+    h=$(head -1 $file)
+    printf "%s %s %s\\n" "$file" "$sort" "$h"
+done
+IFS=$tmp
+
+echo
+# View 2: show server order
+grep '^server-id = ' ${csplit_prefix}* | grep -vi replicate | sort -n -k2 -t= |
+awk -F: '{print $1,$2}' | while read file server_equal
+do
+	grep autogen $file
+done
+""").stream(scrbase=scrbase).dump(src1)
+
+    print "sh -x %s && sh %s" % (all,src1)
+
+##############################
+
+def setSpecialPollInterval():
+
+    scrbase='set_specialpollinterval_autogen'
+    scr=scrbase + '.sh'
+    Template("""
+
+if test ! -z "$(uname -s|grep CYGWIN)"
+then
+
+    # check it
+    reg query 'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\W32Time\TimeProviders\NtpClient' /v SpecialPollInterval
+
+    # set it.  1800 is 30 minutes
+    reg add 'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\W32Time\TimeProviders\NtpClient' /v SpecialPollInterval /t REG_DWORD /d 1800 /f
+
+    # re-check it
+    reg query 'HKEY_LOCAL_MACHINE\SYSTEM\ControlSet001\services\W32Time\TimeProviders\NtpClient' /v SpecialPollInterval
+
+    cd 'C:\Windows\system32'
+    net stop w32time >/dev/null
+    net start w32time >/dev/null
+fi
+
+
+""").stream().dump(scr)
+
+    all=scrbase + '_all.sh'
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+""").stream(
+    scrbase=scrbase,
+    script=scr,
+    servers=servers).dump(all)
+
+    for server in servers:
+        t=Template("%s_{{server}}.sh" % (scrbase))
+        Template("""
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+
+""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+
+    print "sh -x %s" % all
+
+##############################
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-p", "--production", help="production", action="store_true")
+parser.add_argument("-s", "--sandbox", help="sandbox", action="store_true")
+
+parser.add_argument("-f1", "--checkFreeDriveSpace", help="checkFreeDriveSpace", action="store_true")
+parser.add_argument("-f2", "--checkHTTP2DirectoryForSpaceUsage", help="checkHTTP2DirectoryForSpaceUsage", action="store_true")
+parser.add_argument("-f3", "--clearBashHistory", help="clearBashHistory", action="store_true")
+parser.add_argument("-f4", "--createPHPDeploymentScript", help="createPHPDeploymentScript", action="store_true")
+parser.add_argument("-f5", "--deleteSSHKeysDeploymentMistake", help="deleteSSHKeysDeploymentMistake", action="store_true")
+parser.add_argument("-f6", "--downloadMySQLConf", help="downloadMySQLConf", action="store_true")
+parser.add_argument("-f7", "--enableNTPDebug", help="enableNTPDebug", action="store_true")
+parser.add_argument("-f8", "--getMySQLServerVersion", help="getMySQLServerVersion", action="store_true")
+parser.add_argument("-f9", "--getSpecialPollInterval", help="getSpecialPollInterval", action="store_true")
+parser.add_argument("-f10", "--insertToMySQLTagsTable", help="insertToMySQLTagsTable", action="store_true")
+parser.add_argument("-f11", "--metaCheck", help="metaCheck", action="store_true")
+parser.add_argument("-f12", "--mySQLCheckTransporterTable", help="mySQLCheckTransporterTable", action="store_true")
+parser.add_argument("-f13", "--mySQLShowTagsTable", help="mySQLShowTagsTable", action="store_true")
+parser.add_argument("-f14", "--mysqlShowTAGsTableSchema", help="mysqlShowTAGsTableSchema", action="store_true")
+parser.add_argument("-f16", "--restartApacheService", help="restartApacheService", action="store_true")
+parser.add_argument("-f17", "--restartMachine", help="restartMachine", action="store_true")
+parser.add_argument("-f18", "--restartMySQLService", help="restartMySQLService", action="store_true")
+parser.add_argument("-f19", "--restartSLS", help="restartSLS", action="store_true")
+parser.add_argument("-f20", "--setSpecialPollInterval", help="setSpecialPollInterval", action="store_true")
+parser.add_argument("-f21", "--slsRestartRerviceCmdDownload", help="slsRestartRerviceCmdDownload", action="store_true")
+parser.add_argument("-f22", "--slsserverXMLDownload", help="slsserverXMLDownload", action="store_true")
+parser.add_argument("-f23", "--slsserverXMLUpload", help="slsserverXMLUpload", action="store_true")
+parser.add_argument("-f24", "--timeDiffCheck", help="timeDiffCheck", action="store_true")
+parser.add_argument("-f25", "--timeResync", help="timeResync", action="store_true")
+parser.add_argument("-f26", "--updatedb", help="updatedb", action="store_true")
+parser.add_argument("-f15", "--phpINIDownload", help="phpINIDownload", action="store_true")
+parser.add_argument("-f27", "--phpINIUpload", help="phpINIUpload", action="store_true")
+parser.add_argument("-f28", "--getTime", help="getTime", action="store_true")
+parser.add_argument("-f29", "--mySQLDumpStreamboxLiveToFile", help="mySQLDumpStreamboxLiveToFile", action="store_true")
+parser.add_argument("-f30", "--mySQLImportStreamboxLiveDBFromFile", help="mySQLImportStreamboxLiveDBFromFile", action="store_true")
+parser.add_argument("-f32", "--mySQLCheckUUID", help="mySQLCheckUUID", action="store_true")
+parser.add_argument("-f33", "--mySQLCheckUUID2", help="mySQLCheckUUID2", action="store_true")
+parser.add_argument("-f34", "--mySQLShowSlaveStatus", help="mySQLShowSlaveStatus", action="store_true")
+parser.add_argument("-f35", "--mySQLCheckReplicationCheckTable", help="mySQLCheckReplicationCheckTable", action="store_true")
+parser.add_argument("-f36", "--mySQLCheckConnectivity", help="mySQLCheckConnectivity", action="store_true")
+parser.add_argument("-f37", "--mySQLAdminFlushHosts", help="mySQLAdminFlushHosts", action="store_true")
+parser.add_argument("-f38", "--apacheEnableLogging", help="apacheEnableLogging", action="store_true")
+parser.add_argument("-f39", "--apacheTailLog", help="apacheTailLog", action="store_true")
+parser.add_argument("-f49", "--showFirewall", help="showFirewall", action="store_true")
+parser.add_argument("-f50", "--sshCheckAuthType", help="sshCheckAuthType", action="store_true")
+
+args = parser.parse_args()
+
+if args.production:
+    servers = config.get('servers','production-servers')
+    with open('servers.txt','w') as f:
+        [f.write(s.strip() + '\n') for s in servers.split(',')]
+
+if args.sandbox:
+    servers = config.get('servers','sandbox-servers')
+    with open('servers.txt','w') as f:
+        [f.write(s.strip() + '\n') for s in servers.split(',')]
+
+with open('servers.txt') as f:
+    servers = f.readlines()
+    servers = [x.strip('\n') for x in servers]
+
+if args.checkFreeDriveSpace: checkFreeDriveSpace()
+if args.checkHTTP2DirectoryForSpaceUsage: checkHTTP2DirectoryForSpaceUsage()
+if args.clearBashHistory: clearBashHistory()
+if args.createPHPDeploymentScript: createPHPDeploymentScript()
+if args.deleteSSHKeysDeploymentMistake: deleteSSHKeysDeploymentMistake()
+if args.downloadMySQLConf: downloadMySQLConf()
+if args.enableNTPDebug: enableNTPDebug()
+if args.getMySQLServerVersion: getMySQLServerVersion()
+if args.getSpecialPollInterval: getSpecialPollInterval()
+if args.insertToMySQLTagsTable: insertToMySQLTagsTable()
+if args.metaCheck: metaCheck()
+if args.mySQLCheckTransporterTable: mySQLCheckTransporterTable()
+if args.mySQLShowTagsTable: mySQLShowTagsTable()
+if args.mysqlShowTAGsTableSchema: mysqlShowTAGsTableSchema()
+if args.phpINIDownload: phpINIDownload()
+if args.restartApacheService: restartApacheService()
+if args.restartMachine: restartMachine()
+if args.restartMySQLService: restartMySQLService()
+if args.restartSLS: restartSLS()
+if args.setSpecialPollInterval: setSpecialPollInterval()
+if args.slsRestartRerviceCmdDownload: slsRestartRerviceCmdDownload()
+if args.slsserverXMLDownload: slsserverXMLDownload()
+if args.slsserverXMLUpload: slsserverXMLUpload()
+if args.timeDiffCheck: timeDiffCheck()
+if args.timeResync: timeResync()
+if args.updatedb: updatedb()
+if args.phpINIUpload: phpINIUpload()
+if args.getTime: getTime()
+if args.mySQLDumpStreamboxLiveToFile: mySQLDumpStreamboxLiveToFile()
+if args.mySQLImportStreamboxLiveDBFromFile: mySQLImportStreamboxLiveDBFromFile()
+if args.mySQLCheckUUID: mySQLCheckUUID()
+if args.mySQLCheckUUID2: mySQLCheckUUID2()
+if args.mySQLShowSlaveStatus: mySQLShowSlaveStatus()
+if args.mySQLCheckReplicationCheckTable: mySQLCheckReplicationCheckTable()
+if args.mySQLCheckConnectivity: mySQLCheckConnectivity()
+if args.mySQLAdminFlushHosts: mySQLAdminFlushHosts()
+if args.apacheEnableLogging: apacheEnableLogging()
+if args.apacheTailLog: apacheTailLog()
+if args.showFirewall: showFirewall()
+if args.sshCheckAuthType: ssh_check_auth_type()
