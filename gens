@@ -23,7 +23,7 @@ config.read(os.path.join( os.path.dirname(os.path.realpath(__file__)), 'config.i
 
 ##############################
 
-def deleteSSHKeysDeploymentMistake():
+def deleteUnusedDirectoriesCleanup():
 
     scrbase='delete_ssh_keys_from_production_autogen'
     scr=scrbase + '.sh'
@@ -1957,7 +1957,7 @@ parser.add_argument("-f1", "--checkFreeDriveSpace", help="checkFreeDriveSpace", 
 parser.add_argument("-f2", "--checkHTTP2DirectoryForSpaceUsage", help="checkHTTP2DirectoryForSpaceUsage", action="store_true")
 parser.add_argument("-f3", "--clearBashHistory", help="clearBashHistory", action="store_true")
 parser.add_argument("-f4", "--createPHPDeploymentScript", help="createPHPDeploymentScript", action="store_true")
-parser.add_argument("-f5", "--deleteSSHKeysDeploymentMistake", help="deleteSSHKeysDeploymentMistake", action="store_true")
+parser.add_argument("-f5", "--deleteUnusedDirectoriesCleanup", help="deleteUnusedDirectoriesCleanup", action="store_true")
 parser.add_argument("-f6", "--downloadMySQLConf", help="downloadMySQLConf", action="store_true")
 parser.add_argument("-f7", "--enableNTPDebug", help="enableNTPDebug", action="store_true")
 parser.add_argument("-f8", "--getMySQLServerVersion", help="getMySQLServerVersion", action="store_true")
@@ -2014,7 +2014,7 @@ if args.checkFreeDriveSpace: checkFreeDriveSpace()
 if args.checkHTTP2DirectoryForSpaceUsage: checkHTTP2DirectoryForSpaceUsage()
 if args.clearBashHistory: clearBashHistory()
 if args.createPHPDeploymentScript: createPHPDeploymentScript()
-if args.deleteSSHKeysDeploymentMistake: deleteSSHKeysDeploymentMistake()
+if args.deleteUnusedDirectoriesCleanup: deleteUnusedDirectoriesCleanup()
 if args.downloadMySQLConf: downloadMySQLConf()
 if args.enableNTPDebug: enableNTPDebug()
 if args.getMySQLServerVersion: getMySQLServerVersion()
