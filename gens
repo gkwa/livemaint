@@ -34,6 +34,11 @@ if test -d /c/Apache/htdocs/ls/health_monitor/sshWork
 then
 	rm -r /c/Apache/htdocs/ls/health_monitor/sshWork
 fi
+
+if test -d /c/Apache/htdocs/ls/health_monitor/sandbox
+then
+	rm -r /c/Apache/htdocs/ls/health_monitor/sandbox
+fi
 """).stream().dump(scr)
 
     all=scrbase + '_all.sh'
