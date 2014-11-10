@@ -31,7 +31,7 @@ mkdir -p $dir
 rm -f "$dir/${basename}-$d"
 rm -f "$dir/${basename}-$d.pub"
 key="$(openssl rand 8 -base64|sed -e 's,=*$,,')"
-ssh-keygen -q -P "$key" -t rsa -f "$dir/${basename}-$d" -C "Created on $d"
+ssh-keygen -q -P "$key" -t rsa -f "$dir/${basename}-$d" -C "${basename}-$d"
 chmod -R 600 "$dir/${basename}-$d"
 ls $dir/${basename}-$d*
 
