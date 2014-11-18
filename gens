@@ -550,7 +550,7 @@ dos2unix --quiet {{scrBase}}_{{server}}.log
 
     for server in servers:
         bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
-        tmpl.stream(mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        tmpl.stream().dump(bashScr)
         t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
 
     Template("""
