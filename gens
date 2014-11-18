@@ -30,6 +30,11 @@ def deleteUnusedDirectoriesCleanup():
     Template("""
 unset HISTFILE
 
+if test -f /c/Apache/htdocs/ls/includes/sdlib.min.old.js
+then
+	rm /c/Apache/htdocs/ls/includes/sdlib.min.old.js
+fi
+
 if test -d /c/Apache/htdocs/ls/health_monitor/sshWork
 then
 	rm -r /c/Apache/htdocs/ls/health_monitor/sshWork
