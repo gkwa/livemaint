@@ -73,7 +73,7 @@ scp {{script}} {{server}}:/tmp
 ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
 """).stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
 
-    print "sh %s &" %  all
+    print "sh %s" %  all
 
 ##############################
 
