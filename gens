@@ -574,7 +574,7 @@ dos2unix --quiet {{allLogFile}}
     scrBase=scrBase,
     servers=servers).dump(allScr)
 
-    print "sh -x %s" % allScr
+    print "sh %s" % allScr
 
 ##############################
 
