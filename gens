@@ -624,6 +624,52 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def checkMySQLProcessList():
+
+    scrTmplFile='mysql_check_processlist_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(scrBase=scrBase,mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
 def mySQLCheckConnectivity():
 
     import itertools
@@ -2003,6 +2049,7 @@ parser.add_argument("-f38", "--apacheEnableLogging", help="apacheEnableLogging",
 parser.add_argument("-f39", "--apacheTailLog", help="apacheTailLog", action="store_true")
 parser.add_argument("-f49", "--showFirewall", help="showFirewall", action="store_true")
 parser.add_argument("-f50", "--sshCheckAuthType", help="sshCheckAuthType", action="store_true")
+parser.add_argument("-f51", "--checkMySQLProcessList", help="checkMySQLProcessList", action="store_true")
 
 args = parser.parse_args()
 
@@ -2060,3 +2107,4 @@ if args.apacheEnableLogging: apacheEnableLogging()
 if args.apacheTailLog: apacheTailLog()
 if args.showFirewall: showFirewall()
 if args.sshCheckAuthType: ssh_check_auth_type()
+if args.checkMySQLProcessList: checkMySQLProcessList()
