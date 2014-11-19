@@ -185,50 +185,50 @@ ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
 
 def checkFreeDriveSpace():
 
-    scrbase='check_free_drive_space_autogen'
-    scr=scrbase + '.sh'
-    Template("""
+    scrTmplFile='check_free_drive_space_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
 
-if test ! -z "$(uname -s|grep CYGWIN)"
-then
-	# Windows
-	[ -d /d ] && df -h /c /d
-	[ -d /e ] && df -h /c /e
-else
-	# Linux
-	df -h
-fi
-
-""").stream().dump(scr)
-
-    all=scrbase + '_all.sh'
-    Template("""
-
-parallel --verbose --progress --jobs 10 --no-notice sh ::: \\
-{% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
-{% endfor %}
-
-{
-	{% for server in servers %}echo "############### {{server}} ##################"
-	cat {{scrbase}}_{{server}}.log
-	{% endfor %}
-} >{{alllog}}
-
-""").stream(
-    scrbase=scrbase,
-    script=scr,
-    alllog=all + '.log',
-    servers=servers).dump(all)
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
 
     for server in servers:
-        t=Template("%s_{{server}}.sh" % (scrbase))
-        Template("""
-scp {{script}} {{server}}:/tmp
-ssh {{server}} sh /tmp/{{script}} >{{scrbase}}_{{server}}.log 2>&1
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(server=server,scrBase=scrBase).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
 
-""").stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
+    Template("""
 
-    print "sh %s" %  all
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+
+t=/tmp/$0.$$
+{
+    {% for server in servers %}
+        sed 1d {{scrBase}}_{{server}}.log | awk '{print $5,$1,$7}'
+    {% endfor %}
+} | gsort -t' ' -k1 --human-numeric-sort | xargs printf '%-10s%10s%5s\\n' >$t
+printf '%-10s%10s%5s\\n' 'Avail' 'Server' 'Path' >{{allLogFile}}
+cat $t | grep -vE '/sys/fs/cgroup|/dev|/mnt|/run/lock|/run/user|/run' >>{{allLogFile}}
+rm -f $t
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
 
 ##############################
 
