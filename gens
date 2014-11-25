@@ -690,6 +690,7 @@ dos2unix --quiet {{scrBase}}_{{server}}.log
         bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
         tmpl.stream(scrBase=scrBase,
                     data_drive=config.get(server,'data_drive'),
+                    mysql_backup_pass=config.get(server,'mysql_sls_repl_pass'),
                     mysql_backup_host=config.get(server,'mysql_backup_host')).dump(bashScr)
         t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
 

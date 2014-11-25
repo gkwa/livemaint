@@ -57,6 +57,7 @@ $storage->setAttribute('ldmp_proto','1');
 $storage->setAttribute('limiter','2');
 $storage->setAttribute('mp4','c:\\SLS_DB\\wrappers\\exit_with_success.cmd');
 $storage->setAttribute('mysql_backup_host','{{mysql_backup_host}}');
+$storage->setAttribute('mysql_backup_pass','{{mysql_backup_pass}}');
 $storage->setAttribute('nopic','nopic2.jpg');
 $storage->setAttribute('ogg','c:\\SLS_DB\\wrappers\\exit_with_success.cmd');
 $storage->setAttribute('path','c:\\Apache\\htdocs\\ls\\actl3files');
