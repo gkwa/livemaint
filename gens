@@ -670,6 +670,52 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def remote_logging_setup():
+
+    scrTmplFile='remote_logging_setup_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(scrBase=scrBase).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
 def update_slsserver_xml():
 
     scrTmplFile='update_slsserver_xml_autogen.sh'
@@ -2100,6 +2146,7 @@ parser.add_argument("-f49", "--showFirewall", help="showFirewall", action="store
 parser.add_argument("-f50", "--sshCheckAuthType", help="sshCheckAuthType", action="store_true")
 parser.add_argument("-f51", "--checkMySQLProcessList", help="checkMySQLProcessList", action="store_true")
 parser.add_argument("-f52", "--update_slsserver_xml", help="update_slsserver_xml", action="store_true")
+parser.add_argument("-f53", "--remote_logging_setup", help="remote_logging_setup", action="store_true")
 
 args = parser.parse_args()
 
@@ -2158,4 +2205,5 @@ if args.apacheTailLog: apacheTailLog()
 if args.showFirewall: showFirewall()
 if args.sshCheckAuthType: ssh_check_auth_type()
 if args.checkMySQLProcessList: checkMySQLProcessList()
+if args.remote_logging_setup: remote_logging_setup()
 if args.update_slsserver_xml: update_slsserver_xml()
