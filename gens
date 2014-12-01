@@ -2142,11 +2142,11 @@ parser.add_argument("-f36", "--mySQLCheckConnectivity", help="mySQLCheckConnecti
 parser.add_argument("-f37", "--mySQLAdminFlushHosts", help="mySQLAdminFlushHosts", action="store_true")
 parser.add_argument("-f38", "--apacheEnableLogging", help="apacheEnableLogging", action="store_true")
 parser.add_argument("-f39", "--apacheTailLog", help="apacheTailLog", action="store_true")
-parser.add_argument("-f49", "--showFirewall", help="showFirewall", action="store_true")
-parser.add_argument("-f50", "--sshCheckAuthType", help="sshCheckAuthType", action="store_true")
-parser.add_argument("-f51", "--checkMySQLProcessList", help="checkMySQLProcessList", action="store_true")
-parser.add_argument("-f52", "--update_slsserver_xml", help="update_slsserver_xml", action="store_true")
-parser.add_argument("-f53", "--remote_logging_setup", help="remote_logging_setup", action="store_true")
+parser.add_argument("-f40", "--showFirewall", help="showFirewall", action="store_true")
+parser.add_argument("-f51", "--sshCheckAuthType", help="sshCheckAuthType", action="store_true")
+parser.add_argument("-f52", "--checkMySQLProcessList", help="checkMySQLProcessList", action="store_true")
+parser.add_argument("-f53", "--update_slsserver_xml", help="update_slsserver_xml", action="store_true")
+parser.add_argument("-f54", "--remote_logging_setup", help="remote_logging_setup", action="store_true")
 
 args = parser.parse_args()
 
