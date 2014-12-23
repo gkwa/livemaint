@@ -6,14 +6,14 @@ if test -z '{{mysql_user_pass}}'
 then
     pass_arg=""
 else
-    pass_arg="-p'{{mysql_user_pass}}'"
+    pass_arg="--password='{{mysql_user_pass}}'"
 fi
 
 printf -- '----------\\nSHOW VARIABLES LIKE %%Path%%\\n----------\\n'
-mysql -h127.0.0.1 -u{{mysql_user}} $pass_arg -e 'SHOW VARIABLES LIKE "%Path%"'
+mysql -h127.0.0.1 --user={{mysql_user}} $pass_arg -e 'SHOW VARIABLES LIKE "%Path%"'
 
 printf -- '----------\\nSHOW VARIABLES LIKE %%dir%%\\n----------\\n'
-mysql -h127.0.0.1 -u{{mysql_user}} $pass_arg -e 'SHOW VARIABLES LIKE "%dir%"'
+mysql -h127.0.0.1 --user={{mysql_user}} $pass_arg -e 'SHOW VARIABLES LIKE "%dir%"'
 
 # Windows only
 if test ! -z "$(uname -s|grep CYGWIN)"
@@ -23,7 +23,7 @@ then
 fi
 
 printf -- '----------\\nSELECT LPAD(VARIABLE_NAME,50," ") ,VARIABLE_VALUE from INFORMATION_SCHEMA.global_variables\\n----------\\n'
-mysql -h127.0.0.1 -u{{mysql_user}} $pass_arg -e \
+mysql -h127.0.0.1 --user={{mysql_user}} $pass_arg -e \
 '\
 SELECT \
 LPAD(VARIABLE_NAME,70," ") \

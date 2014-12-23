@@ -49,15 +49,15 @@ SQL="${SQL} FROM information_schema.tables WHERE table_schema='${DBTODUMP}'"
 
 # skip activity table because its too big ~1.5GB
 SQL="${SQL} AND table_name NOT IN ('activity','streaming_log')"
-TBLIST=`mysql -h127.0.0.1 -u{{mysql_user}} -p'{{mysql_user_pass}}' -AN -e"${SQL}"`
+TBLIST=`mysql -h127.0.0.1 --user={{mysql_user}} --password='{{mysql_user_pass}}' -AN -e"${SQL}"`
 
 
 for table in $TBLIST
 do
     dumpFileAbsPath=$dumpBaseDir/$table.sql
     mysqldump -h127.0.0.1 \
-	-u{{mysql_user}} \
-	-p'{{mysql_user_pass}}' \
+	--user={{mysql_user}} \
+	--password='{{mysql_user_pass}}' \
 	${DBTODUMP} $table >$dumpFileAbsPath
     du -sh $dumpFileAbsPath
 #    zip -9r $zipFileAbsPath $dumpFileAbsPath

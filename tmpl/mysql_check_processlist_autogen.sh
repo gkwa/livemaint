@@ -13,5 +13,5 @@ SHOW FULL PROCESSLIST;
 
 __EOT__
 
-mysql --table -h127.0.0.1 -u{{mysql_user}} -p'{{mysql_user_pass}}' <{{scrBase}}.sql 2>/dev/null
+mysql --table -h127.0.0.1 --user={{mysql_user}} --password='{{mysql_user_pass}}' <{{scrBase}}.sql 2>/dev/null
 rm -f {{scrBase}}.sql

@@ -320,7 +320,7 @@ def mysqlShowTAGsTableSchema():
 
 unset HISTFILE
 
-mysql -h127.0.0.1 -Dstreambox_live -usls_php -p'{{sls_php_pass}}' -e 'show columns from tag'
+mysql -h127.0.0.1 -Dstreambox_live --user=sls_php --password='{{sls_php_pass}}' -e 'show columns from tag'
 
 """).stream(sls_php_pass=sls_php_pass).dump(scr)
 
@@ -793,7 +793,7 @@ def mySQLCheckConnectivity():
         mysql_check_tmpl=Template("""#!/bin/sh
 unset HISTFILE
 set +o errexit
-mysql --table -u{{mysql_user}} -p'{{mysql_user_pass}}' -D{{database}} -h{{server2}}.streambox.com -e 'SELECT * FROM slsconfig LIMIT 1' 2>&1 |
+mysql --table --user={{mysql_user}} --password='{{mysql_user_pass}}' -D{{database}} -h{{server2}}.streambox.com -e 'SELECT * FROM slsconfig LIMIT 1' 2>&1 |
 grep -v 'Warning: Using a password on the command line interface can be insecure.'
 """)
         mysql_check_tmpl.stream(
@@ -1057,7 +1057,7 @@ def mySQLShowTagsTable():
     scr=scrbase + '.sh'
     Template("""
 unset HISTFILE
-mysql -h127.0.0.1 -Dstreambox_live -usls_php -p'{{sls_php_pass}}' -e 'SELECT tag_id,tag FROM tag WHERE tag_id=1316561'
+mysql -h127.0.0.1 -Dstreambox_live --user=sls_php --password='{{sls_php_pass}}' -e 'SELECT tag_id,tag FROM tag WHERE tag_id=1316561'
 """).stream(sls_php_pass=sls_php_pass).dump(scr)
 
     all=scrbase + '_all.sh'
@@ -1142,7 +1142,7 @@ def getMySQLServerVersion():
 
 unset HISTFILE
 
-mysql -h127.0.0.1 -Dstreambox_live -usls_php -p'{{sls_php_pass}}' -e 'SHOW VARIABLES LIKE "%version%";'
+mysql -h127.0.0.1 -Dstreambox_live --user=sls_php --password='{{sls_php_pass}}' -e 'SHOW VARIABLES LIKE "%version%";'
 
 """).stream(sls_php_pass=sls_php_pass).dump(scr)
 
@@ -1257,7 +1257,7 @@ SELECT * FROM `tag` WHERE `tag_id` ='1316561'  ORDER BY `tag_id`;
     Template("""
 
 unset HISTFILE
-mysql -h127.0.0.1 -Dstreambox_live -uroot -p'{{root_pass}}' </tmp/{{ sql_scr }}
+mysql -h127.0.0.1 -Dstreambox_live --user=root --password='{{root_pass}}' </tmp/{{ sql_scr }}
 
 """).stream(root_pass=root_pass,sql_scr=sql_scr).dump(scr)
 

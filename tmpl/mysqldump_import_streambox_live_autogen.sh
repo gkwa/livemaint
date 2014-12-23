@@ -47,9 +47,9 @@ if test -z "$(env | grep WINDIR)"
 then
 
     # Linux
-    sudo mysql -h127.0.0.1 -u{{mysql_user}} -p'{{mysql_user_pass}}' -e "DROP DATABASE IF EXISTS {{database}}"
+    sudo mysql -h127.0.0.1 --user={{mysql_user}} --password='{{mysql_user_pass}}' -e "DROP DATABASE IF EXISTS {{database}}"
     sudo rm -rf '/var/lib/mysql/{{database}}/' #workaround: http://stackoverflow.com/questions/12196996/mysql-error-dropping-database-errno-13-errno-17-errno-39
-    sudo mysqladmin -h127.0.0.1 -u{{mysql_user}} -p{{mysql_user_pass}} create {{database}}
+    sudo mysqladmin -h127.0.0.1 --user={{mysql_user}} --password='{{mysql_user_pass}}' create {{database}}
 
     cd $freePartition/$basename
     for sqlfile in `ls *.sql`
@@ -57,16 +57,16 @@ then
 	sqlbn=$(echo $sqlfile|sed -e 's,\.sql$,,') # from ifb.sql return just ifb
 	sudo mysql \
 	    -h127.0.0.1 \
-	    -u{{mysql_user}} \
-	    -p'{{mysql_user_pass}}' \
+	    --user={{mysql_user}} \
+	    --password='{{mysql_user_pass}}' \
 	    {{database}} <$sqlfile
     done
 
 else
 
     # Windows
-    mysql -h127.0.0.1 -u{{mysql_user}} -p'{{mysql_user_pass}}' -e "DROP DATABASE IF EXISTS {{database}}"
-    mysqladmin -h127.0.0.1 -u{{mysql_user}} -p'{{mysql_user_pass}}' create {{database}}
+    mysql -h127.0.0.1 --user={{mysql_user}} --password='{{mysql_user_pass}}' -e "DROP DATABASE IF EXISTS {{database}}"
+    mysqladmin -h127.0.0.1 --user={{mysql_user}} --password='{{mysql_user_pass}}' create {{database}}
 
     cd $freePartition/$basename
     for sqlfile in `ls *.sql`
@@ -74,8 +74,8 @@ else
 	sqlbn=$(echo $sqlfile|sed -e 's,\.sql$,,') # from ifb.sql return just ifb
 	mysql \
 	    -h127.0.0.1 \
-	    -u{{mysql_user}} \
-	    -p'{{mysql_user_pass}}' \
+	    --user={{mysql_user}} \
+	    --password='{{mysql_user_pass}}' \
 	    {{database}} <$sqlfile
     done
 fi

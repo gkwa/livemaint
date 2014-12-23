@@ -5,7 +5,7 @@ unset HISTFILE
 cd /tmp
 cat << __EOT__ >{{scrBase}}.sql
 
-SELECT * FROM transporter WHERE is_active=1 ORDER BY transporter;
+-- SELECT * FROM transporter WHERE is_active=1 ORDER BY transporter;
 
 -- --------------------------------------------------
 
@@ -112,13 +112,13 @@ ORDER BY ip;
 */
 __EOT__
 
-mysql --table -h127.0.0.1 -Dstreambox_live -u{{mysql_user}} \
-    -p'{{mysql_user_pass}}' \
+mysql --table -h127.0.0.1 -Dstreambox_live --user={{mysql_user}} \
+    --password='{{mysql_user_pass}}' \
     -e '\
 select * from transporter \
 where port=3306 and \
 is_active=1 order by
 transporter' 2>&1 | grep -vi 'Warning: Using a password on the command line interface can be insecure.'
 
-mysql --table -h127.0.0.1 -Dstreambox_live -u{{mysql_user}} -p'{{mysql_user_pass}}' <{{scrBase}}.sql 2>/dev/null
+mysql --table -h127.0.0.1 -Dstreambox_live --user={{mysql_user}} --password='{{mysql_user_pass}}' <{{scrBase}}.sql 2>/dev/null
 rm -f {{scrBase}}.sql
