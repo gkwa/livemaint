@@ -1573,10 +1573,15 @@ def restartSLS():
 
 unset HISTFILE
 
-net stop slservice_db
-taskkill /f /im sls.exe 2>/dev/null #just to be sure
-taskkill /f /im sls.exe 2>/dev/null #just to be sure
-net start slservice_db
+if test ! -z "$(env | grep WINDIR)"
+then
+    # Windows
+    net stop slservice_db
+    taskkill /f /im sls.exe 2>/dev/null #just to be sure
+    taskkill /f /im sls.exe 2>/dev/null #just to be sure
+    net start slservice_db
+
+fi
 
 """).stream().dump(scr)
 
