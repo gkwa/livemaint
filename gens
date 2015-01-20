@@ -30,6 +30,8 @@ def deleteUnusedDirectoriesCleanup():
     Template("""
 unset HISTFILE
 
+rm -f /c/Apache/htdocs/ls/device.sql
+
 [ -f /c/Apache/htdocs/ls/SLSver2.php ] && rm -f /c/Apache/htdocs/ls/SLSver2.php
 
 if test -f /c/Apache/htdocs/ls/includes/sdlib.min.old.js
