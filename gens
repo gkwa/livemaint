@@ -2051,6 +2051,13 @@ awk -F: '{print $1,$2}' | while read file server_equal
 do
 	grep autogen $file
 done
+
+ls *_csplit* | while read f
+do
+	grep -E 'auto_increment_increment|^server-id|auto_increment_offset' $f | fmt -w 1000
+	echo
+done | sort -u | sed '/^$/d'
+
 """).stream(scrbase=scrbase).dump(src1)
 
     print "sh -x %s && sh %s" % (all,src1)
