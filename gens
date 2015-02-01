@@ -2056,7 +2056,7 @@ ls *_csplit* | while read f
 do
 	grep -E 'auto_increment_increment|^server-id|auto_increment_offset' $f | fmt -w 1000
 	echo
-done | sort -u | sed '/^$/d'
+done | sort -u -t= -k2 -n | sed '/^$/d'
 
 """).stream(scrbase=scrbase).dump(src1)
 
