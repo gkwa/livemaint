@@ -65,7 +65,6 @@ ORDER BY transporter_id\\G;
 
 -- --------------------------------------------------
 
-/*
 SELECT
     transporter,
     transporter_id,
@@ -82,7 +81,6 @@ WHERE
     transporter LIKE '%MySQL%'
 AND
     is_active=1
-*/
 
 -- --------------------------------------------------
 
