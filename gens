@@ -2144,8 +2144,8 @@ parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
 
 {
     {% for server in servers %}
-	csplit -f {{scrBase}}_{{server}}_autogen_csplit_ -n 3 -sk {{scrBase}}_{{server}}.log '/^HostName: /' '{100}' 2>&1 |
-	grep -v 'csplit: ^HostName: : no match'
+	dos2unix --quiet {{scrBase}}_{{server}}.log
+	cat {{scrBase}}_{{server}}.log | perl -w tmpl/get_cron_job_list_summarize.pl
     {% endfor %}
 }
 
