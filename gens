@@ -908,7 +908,7 @@ branchname=$(git symbolic-ref --short HEAD)
 }
 
 {
-    git dcno a998033.. | xargs ls -t1 2>/dev/null
+    git dcno 5a2e9a7.. | xargs ls -t1 2>/dev/null
 } | cpio -pamvd $dir/o
 
 cd $dir
