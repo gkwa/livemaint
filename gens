@@ -2212,6 +2212,10 @@ parser.add_argument("-f55", "--get_cron_job_list", help="get_cron_job_list", act
 
 args = parser.parse_args()
 
+if not os.path.isfile('servers.txt') and not (args.production or args.sandbox):
+    print "I cant find servers.txt, first generate servers.txt using 'gens --production' or use 'gens --sandbox'"
+    exit(1)
+
 if args.production:
     servers = config.get('servers','production-servers')
     with open('servers.txt','w') as f:
