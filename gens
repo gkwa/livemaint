@@ -30,6 +30,8 @@ def deleteUnusedDirectoriesCleanup():
     Template("""
 unset HISTFILE
 
+[ -d /c/scriptsNotForProductionm ] && rm -rf /c/scriptsNotForProductionm
+
 rm -f /c/Apache/htdocs/ls/device.sql
 
 [ -f /c/Apache/htdocs/ls/SLSver2.php ] && rm -f /c/Apache/htdocs/ls/SLSver2.php
