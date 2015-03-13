@@ -59,6 +59,7 @@ mysql \
     $database -e 'SELECT * FROM slsconfig \
 	WHERE name = "required_ver_ls_php" AND is_active = 1 ORDER BY dt_created DESC' >${0}_server_ver.txt
 
+cat ${0}_server_ver.txt
 ##############################
 
 # dump all tables except tables in $exclude_list to .sql file
