@@ -46,6 +46,21 @@ grep -vE "$exclude_list_str" ${0}_tables_all.txt >${0}_tables_will_dump.txt
 
 tables=$(cat ${0}_tables_will_dump.txt|tr '\n' ' ')
 
+##############################
+# Get streambox_live schema version
+##############################
+
+# dump all tables except tables in $exclude_list to .sql file
+mysql \
+    --database=$database \
+    --host=127.0.0.1 \
+    --user={{mysql_user}} \
+    --password='{{mysql_user_pass}}' \
+    $database -e 'SELECT * FROM slsconfig \
+	WHERE name = "required_ver_ls_php" AND is_active = 1 ORDER BY dt_created DESC' >${0}_server_ver.txt
+
+##############################
+
 # dump all tables except tables in $exclude_list to .sql file
 mysqldump \
     --host=127.0.0.1 \
@@ -77,3 +92,4 @@ du -sh $basename_zip.zip $basename_streambox_live.sql $basename_mysql.sql
 # rm -f $basename_zip.zip
 rm -f $basename_streambox_live.sql
 rm -f $basename_mysql.sql
+rm -f ${0}_server_ver.txt
