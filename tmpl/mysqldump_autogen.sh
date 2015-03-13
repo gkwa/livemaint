@@ -60,6 +60,28 @@ mysql \
 	WHERE name = "required_ver_ls_php" AND is_active = 1 ORDER BY dt_created DESC' >${0}_server_ver.txt
 
 cat ${0}_server_ver.txt
+
+# FIXME: This produces multiple version numbers which makes me pause:
+
+# slsconfig_id	name	value	is_active	dt_update	dt_created
+# 148	required_ver_ls_php	3.2	1	2015-03-13 04:05:27	2015-03-12 21:04:38
+# 244	required_ver_ls_php	1.0	1	2015-03-13 04:04:37	2015-03-12 21:04:38
+# -- Warning: Skipping the data of table mysql.event. Specify the --events option explicitly.
+
+# 7-Zip [64] 9.20  Copyright (c) 1999-2010 Igor Pavlov  2010-11-18
+# p7zip Version 9.20 (locale=C.UTF-8,Utf16=on,HugeFiles=on,2 CPUs)
+# Scanning
+
+# Creating archive mysql_dump_vN_20150313110613_streambox_live.sql.zip
+
+# Compressing  mysql_dump_vN_20150313110613_mysql.sql
+# Compressing  mysql_dump_vN_20150313110613_streambox_live.sql
+
+# Everything is Ok
+# 156K	mysql_dump_vN_20150313110613_streambox_live.sql.zip
+# 96K	mysql_dump_vN_20150313110613_streambox_live.sql
+# 568K	mysql_dump_vN_20150313110613_mysql.sql
+
 ##############################
 
 # dump all tables except tables in $exclude_list to .sql file
