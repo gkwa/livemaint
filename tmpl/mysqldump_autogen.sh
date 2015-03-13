@@ -46,7 +46,7 @@ grep -vE "$exclude_list_str" ${0}_tables_all.txt >${0}_tables_will_dump.txt
 
 tables=$(cat ${0}_tables_will_dump.txt|tr '\n' ' ')
 
-# dump databse.$tables to file
+# dump all tables except tables in $exclude_list to .sql file
 mysqldump \
     --host=127.0.0.1 \
     --lock-all-tables --compress --quick \
@@ -54,7 +54,7 @@ mysqldump \
     --password='{{mysql_user_pass}}' \
     $database $tables >$basename_streambox_live.sql
 
-# dump structure for table $tables
+# dump structure for table(s) in $exclude_list
 mysqldump \
     --no-data \
     --host=127.0.0.1 \
@@ -63,7 +63,7 @@ mysqldump \
     --password='{{mysql_user_pass}}' \
     $database $exclude_list >>$basename_streambox_live.sql
 
-# dump structure for table $tables
+# dump the database mysql
 mysqldump \
     --host=127.0.0.1 \
     --lock-all-tables --compress --quick \
