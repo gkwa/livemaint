@@ -19,7 +19,7 @@ exclude_list="activity streaming_log"
 
 basename_streambox_live=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_streambox_live
 basename_mysql=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_mysql
-basename_zip=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_streambox_live
+basename_zip=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_streambox_live.sql
 
 rm -f $basename_zip.zip
 rm -f $basename_streambox_live.sql
