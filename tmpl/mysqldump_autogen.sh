@@ -17,9 +17,11 @@ fi
 database=streambox_live
 exclude_list="activity streaming_log"
 
-basename_streambox_live=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_streambox_live
-basename_mysql=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_mysql
-basename_zip=mysql_dump_vN_$(date +%Y%m%d%H%M%S)_streambox_live.sql
+seconds_since_epoch=$(date +%s)
+
+basename_streambox_live=mysql_dump_vN_$(date +%Y%m%d)_streambox_live_$seconds_since_epoch
+basename_mysql=mysql_dump_vN_$(date +%Y%m%d)_mysql_$seconds_since_epoch
+basename_zip=mysql_dump_vN_$(date +%Y%m%d)_streambox_live_$seconds_since_epoch.sql
 
 rm -f $basename_zip.zip
 rm -f $basename_streambox_live.sql
