@@ -505,8 +505,7 @@ def mysqldump():
 
     t2 = Template("""
 scp {{script}} {{server}}:/tmp
-ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
-dos2unix --quiet {{scrBase}}_{{server}}.log
+ssh {{server}} 'nohup nice -n 19 sh /tmp/{{script}} &'
 """)
 
     for server in servers:

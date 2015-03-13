@@ -77,3 +77,5 @@ du -sh $basename_zip.zip $basename_streambox_live.sql $basename_mysql.sql
 # rm -f $basename_zip.zip
 rm -f $basename_streambox_live.sql
 rm -f $basename_mysql.sql
+
+rm -f $0
