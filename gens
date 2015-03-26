@@ -2417,6 +2417,82 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def mysqldbcompare():
+
+    import itertools
+    from pprint import pprint
+
+    scrTmplFile='mysqldbcompare_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    permlist=[]
+    with open('servers.txt') as f:
+        servers = f.readlines()
+        servers = [x.strip('\n') for x in servers]
+        permlist = list(itertools.permutations(servers,2))
+
+    script_list=[]
+    for server_pair in permlist:
+
+        s1=server_pair[0]
+        s2=server_pair[1]
+
+        scrname_tmpl=Template("{{scrBase}}_{{server1}}_to_{{server2}}_autogen.sh")
+        scrname_controller_tmpl=Template("mysql_check_from_{{server1}}_to_{{server2}}_controller_autogen.sh")
+        mysql_check_tmpl=env.get_template(scrTmplFile)
+        mysql_check_tmpl.stream(
+            mysql_server1=config.get(s1,'fqdn'),
+            mysql_server2=config.get(s2,'fqdn'),
+
+            mysql_server1_user=config.get(s1,'dba_username'),
+            mysql_server1_user_password=config.get(s1,'dba_password'),
+
+            mysql_server2_user=config.get(s2,'dba_username'),
+            mysql_server2_user_password=config.get(s2,'dba_password'),
+
+            mysql_server1_dbname='streambox_live',
+            mysql_server2_dbname='streambox_live',
+            server1=s1,
+            server2=s2).dump(scrname_tmpl.render(scrBase=scrBase,server1=s1,server2=s2))
+
+        Template("""#!/bin/sh
+
+scp {{script}} {{server1}}:/tmp
+ssh {{server1}} 'sh /tmp/{{script}}' >{{script}}.log 2>&1
+dos2unix --quiet {{script}}.log
+""").stream(server1=s1,script=scrname_tmpl.render(scrBase=scrBase,server1=s1,server2=s2)).dump(scrname_controller_tmpl.render(server1=s1,server2=s2))
+        script_list.append(scrname_controller_tmpl.render(server1=s1,server2=s2))
+
+    Template("""#!/bin/sh
+
+time parallel --progress --jobs 20 --no-notice --verbose sh ::: \\
+{% for script in script_list %}{{script}}{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    for log in `ls *.log | grep -v {{allLogFile}}`
+    do
+        echo $log
+        cat $log
+        echo
+    done
+
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(scrBase=scrBase,allLogFile=allLogFile,script_list=script_list).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-p", "--production", help="production", action="store_true")
@@ -2471,6 +2547,7 @@ parser.add_argument("-f57", "--mysqldump", help="mysqldump streambox_live depend
 parser.add_argument("-f58", "--mysqlAddTempDBA", help="add tempoary mysql DBA", action="store_true")
 parser.add_argument("-f59", "--mysqlRemoveTempDBA", help="remove temporary mysql DBA", action="store_true")
 parser.add_argument("-f60", "--mysqlUserCredsUpdate", help="mysqlUserCredsUpdate", action="store_true")
+parser.add_argument("-f61", "--mysqldbcompare", help="mysqldbcompare streambox_live", action="store_true")
 
 args = parser.parse_args()
 
@@ -2541,3 +2618,4 @@ if args.mysqldump: mysqldump()
 if args.mysqlAddTempDBA: mysqlAddTempDBA()
 if args.mysqlRemoveTempDBA: mysqlRemoveTempDBA()
 if args.mysqlUserCredsUpdate: mysqlUserCredsUpdate()
+if args.mysqldbcompare: mysqldbcompare()
