@@ -2254,6 +2254,104 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def mysqlAddTempDBA():
+
+    scrTmplFile='mysql_remote_admin_add_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(
+            mysql_user='root',
+            mysql_user_pass=config.get(server,'mysql_root_pass'),
+            dba_username=config.get(server,'dba_username'),
+            dba_password=config.get(server,'dba_password')
+        ).dump(bashScr)
+
+        t2 = Template("""#!/bin/sh
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+""")
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+
+    allScr="%s_all.sh" %(scrBase)
+    allLogFile="%s_all.log" %(scrBase)
+    Template("""#!/bin/sh
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}dos2unix --quiet {{scrBase}}_{{server}}.log{% if not loop.last %} \\{% endif %}
+    {% endfor %}
+}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+def mysqlRemoveTempDBA():
+
+    ##############################
+    # Create remove script now too
+    ##############################
+
+    scrTmplFile='mysql_remote_admin_remove_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(
+            mysql_user='root',
+            mysql_user_pass=config.get(server,'mysql_root_pass'),
+            dba_username=config.get(server,'dba_username'),
+            dba_password=config.get(server,'dba_password')
+        ).dump(bashScr)
+
+        t2 = Template("""#!/bin/sh
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+""")
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+
+    allScr="%s_all.sh" %(scrBase)
+    allLogFile="%s_all.log" %(scrBase)
+    Template("""#!/bin/sh
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}dos2unix --quiet {{scrBase}}_{{server}}.log{% if not loop.last %} \\{% endif %}
+    {% endfor %}
+}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-p", "--production", help="production", action="store_true")
@@ -2305,6 +2403,8 @@ parser.add_argument("-f54", "--remote_logging_setup", help="remote_logging_setup
 parser.add_argument("-f55", "--get_cron_job_list", help="get_cron_job_list", action="store_true")
 parser.add_argument("-f56", "--showOSVersion", help="show os version", action="store_true")
 parser.add_argument("-f57", "--mysqldump", help="mysqldump streambox_live dependencies", action="store_true")
+parser.add_argument("-f58", "--mysqlAddTempDBA", help="add tempoary mysql DBA", action="store_true")
+parser.add_argument("-f59", "--mysqlRemoveTempDBA", help="remove temporary mysql DBA", action="store_true")
 
 args = parser.parse_args()
 
@@ -2372,3 +2472,5 @@ if args.update_slsserver_xml: update_slsserver_xml()
 if args.get_cron_job_list: get_cron_job_list()
 if args.showOSVersion: showOSVersion()
 if args.mysqldump: mysqldump()
+if args.mysqlAddTempDBA: mysqlAddTempDBA()
+if args.mysqlRemoveTempDBA: mysqlRemoveTempDBA()
