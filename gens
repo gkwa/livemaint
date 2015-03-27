@@ -15,7 +15,7 @@ import os
 env = Environment(loader=FileSystemLoader('tmpl'))
 
 if not os.path.exists('config.ini'):
-    print 'Quitting.  First create ./config.ini from this page https://docs.google.com/a/streambox.com/spreadsheet/ccc?key=0Al4-wBwe2wygdEI1QXpGRGRSVXZFMXYzb3BfZVVfNmc&usp=drive_web#gid=10'
+    print 'Quitting.  First create ./config.ini from this page https://docs.google.com/a/streambox.com/spreadsheets/d/1IabkEXnjGYKXJQU1x_Dc7vAIcJK7hI6IWwcxlijaFs8/edit#gid=484460686'
     exit(1)
 
 config = ConfigParser.RawConfigParser()
