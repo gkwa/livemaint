@@ -1,0 +1,3 @@
+[submodule "sbxpriv"]
+	path = sbxpriv
+	url = git@gitlab.com:streambox/sbxpriv.git
