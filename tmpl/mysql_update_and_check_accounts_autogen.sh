@@ -55,6 +55,7 @@ fi
 cat <<'__EOT__' >>{{scrBase}}.sql
 
 UPDATE streambox_live.user SET pass='{{streambox_live_sls_exe_pass}}' WHERE login='sls_exe';
+UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE login='admin';
 
 SELECT PASSWORD('{{mysql_sls_php_pass}}');
 
