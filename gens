@@ -1619,13 +1619,28 @@ def mySQLImportStreamboxLiveDBFromFile():
     t2 = Template("""
 scp {{script}} {{server}}:/tmp
 ssh {{server}} 'sh -x /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+# ssh {{server}} 'sh -x /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+# ssh {{server}} 'sh -x /tmp/{{script}}'
 dos2unix --quiet {{scrBase}}_{{server}}.log
 """)
 
     for server in servers:
         bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
-        tmpl.stream(database='streambox_live',mysql_user='root',mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
-        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+        tmpl.stream(
+            scrBase=scrBase,
+            mysql_user='root',
+            mysql_user_pass=config.get(server,'mysql_root_pass'),
+
+            mysql_sls_cron_pass=config.get(server,'sls_cron_pass'),
+            streambox_live_sls_cron_pass=config.get(server,'sls_cron_pass'),
+            mysql_sls_php_pass=config.get(server,'mysql_sls_php_pass'),
+
+            database='streambox_live'
+        ).dump(bashScr)
+
+        t2.stream(scrBase=scrBase,
+                  script=bashScr,
+                  server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
 
     Template("""
 
@@ -2497,12 +2512,18 @@ def mysqlUserCredsUpdate():
     import hashlib
     for server in servers:
         bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
-        passhash = hashlib.md5(config.get(server,'streambox_live_sls_exe_pass'))
         tmpl.stream(
-            streambox_live_webui_admin_pass=config.get(server,'streambox_live_webui_admin_pass'),
-            streambox_live_sls_exe_pass=passhash.hexdigest(),
-            mysql_sls_cron_pass=config.get(server,'mysql_sls_cron_pass'),
+            streambox_live_webui_admin_pass=hashlib.md5(config.get(server,'streambox_live_webui_admin_pass')).hexdigest(),
+            streambox_live_sls_exe_pass=hashlib.md5(config.get(server,'streambox_live_sls_exe_pass')).hexdigest(),
+            mysql_sls_repl_pass=config.get(server,'mysql_sls_repl_pass'),
             mysql_sls_php_pass=config.get(server,'mysql_sls_php_pass'),
+
+            slsreport_mysql_user=config.get(server,'slsreport_mysql_user'),
+            slsreport_mysql_pass=config.get(server,'slsreport_mysql_pass'),
+
+            mysql_sls_cron_pass=config.get(server,'sls_cron_pass'),
+            streambox_live_sls_cron_pass=config.get(server,'sls_cron_pass'),
+
             scrBase=scrBase,
             mysql_user='root',
             mysql_user_pass=config.get(server,'mysql_root_pass')
