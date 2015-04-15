@@ -981,28 +981,55 @@ def createPHPDeploymentScript():
 
     scrbase='create_deployment_script_autogen'
     scr1=scrbase + '.sh'
-    Template("""
+    Template("""#!/bin/sh
 
-# fail if we get error
 set -o errexit
-
 dir=`pwd`
-cd /Users/demo/Documents/git_clone_svn_ls &&
+
+
+
+deploy_brach='masterls'
+
+
+
 rm -rf $dir/o
 
-deploy_brach='LS_Stable_v3.0'
+##############################
+# check whether lsweb is clean and exit if not
+##############################
+cd $dir/lsweb
+git update-index -q --refresh
+if test ! -z "$(git diff-index --name-only HEAD --)"
+then
+    # dirty, bad, exit
+    exit 1
+fi
+
+
+# ##############################
+# # check whether current dir is clean
+# ##############################
+# cd $dir
+# git update-index -q --refresh
+# if test ! -z "$(git diff-index --name-only HEAD --)"
+# then
+#     # dirty, bad, exit
+#     exit 1
+# fi
+
+
 
 branchname=$(git symbolic-ref --short HEAD)
-[ $branchname != 'LS_Stable_v3.0' ] && git checkout LS_Stable_v3.0
+[ $branchname != $deploy_brach ] && git checkout $deploy_brach
 
 branchname=$(git symbolic-ref --short HEAD)
-[ $branchname != 'LS_Stable_v3.0' ] && {
+[ $branchname != $deploy_brach ] && {
 	echo "help!  I cant checkout $deploy_branch, quitting..."
 	exit 1
 }
 
 {
-    git dcno 08fbbae1be989eaa7a5cbf27a9e4b690b5584815.. | xargs ls -t1 2>/dev/null
+    git diff --color --name-only 695150a..| xargs ls -t1 2>/dev/null
 } | cpio -pamvd $dir/o
 
 cd $dir
@@ -1014,7 +1041,7 @@ du -sh o.tar.zip
 
     scrbase='deploy_autogen'
     scr2=scrbase + '.sh'
-    Template("""
+    Template("""#!/bin/sh
 
 set -o errexit
 
@@ -1035,7 +1062,7 @@ rm -rf o
 """).stream().dump(scr2)
 
     all=scrbase + '_all.sh'
-    Template("""
+    Template("""#!/bin/sh
 
 parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
 {% for server in servers %}{{scrbase}}_{{server}}.sh{% if not loop.last %} \\{% endif %}
