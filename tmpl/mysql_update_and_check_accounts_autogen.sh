@@ -7,7 +7,7 @@
 
 unset HISTFILE
 
-trap "rm -f {{scrBase}}.sql; exit" HUP INT QUIT TERM EXIT
+trap "rm -f $0.$$.tmp {{scrBase}}.sql; exit" HUP INT QUIT TERM EXIT
 
 cd /tmp
 
@@ -17,7 +17,6 @@ net stop apache2.4
 net start apache2.4
 __EOT__
 sh $0.$$.tmp &
-
 
 if test ! -z "$(env | grep WINDIR)"
 then
