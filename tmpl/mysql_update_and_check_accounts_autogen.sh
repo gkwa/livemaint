@@ -11,6 +11,14 @@ trap "rm -f {{scrBase}}.sql; exit" HUP INT QUIT TERM EXIT
 
 cd /tmp
 
+cat <<'__EOT__' >$0.$$.tmp
+sed -i.bak -e 's,^mysql.default_password.*=.*,mysql.default_password = {{mysql_sls_php_pass}},' /c/php/php.ini
+net stop apache2.4
+net start apache2.4
+__EOT__
+sh $0.$$.tmp &
+
+
 if test ! -z "$(env | grep WINDIR)"
 then
     # Windows
