@@ -24,6 +24,5 @@ mysqldbcompare \
     --changes-for=server1 \
     {{mysql_server1_dbname}}:{{mysql_server2_dbname}} \
     --difftype=sql \
-    --skip-checksum-table \
     --run-all-tests \
     --skip-checksum-table
