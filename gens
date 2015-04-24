@@ -2463,7 +2463,7 @@ def mysqldbcompare():
         Template("""#!/bin/sh
 
 scp {{script}} {{server1}}:/tmp
-ssh {{server1}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{script}}.log 2>&1
+ssh {{server1}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}'
 dos2unix --quiet {{script}}.log
 """).stream(server1=s1,script=scrname_tmpl.render(scrBase=scrBase,server1=s1,server2=s2)).dump(scrname_controller_tmpl.render(server1=s1,server2=s2))
         script_list.append(scrname_controller_tmpl.render(server1=s1,server2=s2))
