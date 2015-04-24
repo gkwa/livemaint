@@ -25,4 +25,5 @@ mysqldbcompare \
     {{mysql_server1_dbname}}:{{mysql_server2_dbname}} \
     --difftype=sql \
     --skip-checksum-table \
-    --run-all-tests
+    --run-all-tests \
+    --skip-checksum-table
