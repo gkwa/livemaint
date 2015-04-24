@@ -18,6 +18,9 @@ PATH=/c/Program\ Files\ \(x86\)/MySQL/MySQL\ Utilities:$PATH
 PATH=/c/Program\ Files/MySQL/MySQL\ Utilities
 PATH=/c/Program\ Files\ \(x86\)/MySQL/MySQL\ Utilities:$PATH
 
+# --skip-checksum-table
+# http://dev.mysql.com/doc/mysql-utilities/1.5/en/mysqldbcompare.html#option_mysqldbcompare_skip-checksum-table
+
 mysqldbcompare \
     --server1={{mysql_server1_user}}:{{mysql_server1_user_password}}@{{mysql_server1}} \
     --server2={{mysql_server2_user}}:{{mysql_server1_user_password}}@{{mysql_server2}}: \
