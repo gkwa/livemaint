@@ -768,6 +768,177 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def mysql_master_master_replication_setup():
+
+    # https://www.linode.com/docs/databases/mysql/mysql-master-master-replication
+    # http://www.lefred.be/node/45
+    # http://randymelder.com/2012/04/26/how-i-setup-mysql-multi-master-replication/
+
+    import socket
+    import itertools
+    from pprint import pprint
+
+    scrTmplFile='mysql_master_master_replication_setup.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    t1=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    permlist=[]
+    with open('servers.txt') as f:
+        servers = f.readlines()
+        servers = [x.strip('\n') for x in servers]
+        permlist = list(itertools.permutations(servers,2))
+
+    tmys1=Template("for_{{server1}}_master_is_{{server1}}_slave_is_{{server2}}{{controller}}_autogen.sh")
+    tmys2=Template("for_{{server2}}_master_is_{{server1}}_slave_is_{{server2}}{{controller}}_autogen.sh")
+
+    main_script_list=[]
+    for server_pair in permlist:
+        server1=server_pair[0]
+        server2=server_pair[1]
+        main_script = "master_is_{0}_slave_is_{1}_autogen.sh".format(server1,server2)
+        main_script_list.append(main_script)
+
+        Template("""#!/bin/sh
+
+set -e
+
+parallel --jobs 2 --no-notice --verbose sh ::: \\
+{{mys1}} \\
+{{mys2}}
+
+# these should be sequential:
+sh {{server1}}_{{server2}}_swap_sql_autogen.sh
+
+# Start master first
+sh {{server1}}_{{server2}}_represet_controll_autogen.sh
+
+# start slave second
+sh {{server2}}_{{server1}}_represet_controll_autogen.sh
+
+""").stream(
+    mys1=tmys1.render(server1=server1,server2=server2,controller="_controller"),
+    mys2=tmys2.render(server1=server1,server2=server2,controller="_controller"),
+    server1=server1,
+    server2=server2,
+    servers=server2).dump(main_script)
+
+        t2 = Template("""#!/bin/sh
+
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{script}}.log 2>&1
+# ssh {{server}} 'sh /tmp/{{script}}' >{{script}}.log 2>&1
+dos2unix --quiet {{script}}.log
+
+""")
+        t2.stream(
+            script=tmys1.render(server1=server1,server2=server2,controller=""),
+            server=server1,
+            scrBase=scrBase,
+        ).dump(tmys1.render(server1=server1,server2=server2,controller="_controller"))
+        t2.stream(
+            script=tmys2.render(server1=server1,server2=server2,controller=""),
+            server=server2,
+            scrBase=scrBase,
+        ).dump(tmys2.render(server1=server1,server2=server2,controller="_controller"))
+
+        t1.stream(
+            mysql_user='root',
+            mysql_user_pass=config.get(server1,'mysql_root_pass'),
+            mysql_server_id=1, #this is master
+            server1=server1,
+            server2=server2,
+            server1_ip=socket.gethostbyname(config.get(server1,'fqdn')),
+            server2_ip=socket.gethostbyname(config.get(server2,'fqdn')),
+            fqdn=config.get(server1,'fqdn'),
+            database_to_replicate='streambox_live',
+            mysql_repl_username=config.get(server1,'mysql_sls_repl_username'),
+            mysql_repl_pass=config.get(server1,'mysql_sls_repl_pass'),
+            opposing_server_ip_not_mine=config.get(server2,'fqdn')
+        ).dump(tmys1.render(server1=server1,server2=server2))
+
+        t1.stream(
+            mysql_user='root',
+            mysql_user_pass=config.get(server2,'mysql_root_pass'),
+            mysql_server_id=2, #this is slave
+            server1=server1,
+            server2=server2,
+            server1_ip=socket.gethostbyname(config.get(server1,'fqdn')),
+            server2_ip=socket.gethostbyname(config.get(server2,'fqdn')),
+            fqdn=config.get(server2,'fqdn'),
+            database_to_replicate='streambox_live',
+            mysql_repl_username=config.get(server2,'mysql_sls_repl_username'),
+            mysql_repl_pass=config.get(server2,'mysql_sls_repl_pass'),
+            opposing_server_ip_not_mine=config.get(server1,'fqdn')
+        ).dump(tmys2.render(server1=server1,server2=server2))
+
+        t4 = Template("""#!/bin/sh
+cd /tmp
+
+trap "rm -f run_on_{{serverY}}_autogen.sql; exit" HUP INT QUIT TERM EXIT
+
+mysql \\
+    --table \\
+    --host=127.0.0.1 \\
+    --database=mysql \\
+    --user={{mysql_user}} \\
+    --password='{{mysql_user_pass}}' <run_on_{{serverY}}_autogen.sql
+
+""")
+        t4.stream(
+            serverX=server1,
+            serverY=server2,
+            mysql_user='root',
+            mysql_user_pass=config.get(server2,'mysql_root_pass')
+        ).dump("{0}_{1}_represet_autogen.sh".format(server1,server2))
+
+        t4.stream(
+            serverX=server2,
+            serverY=server1,
+            mysql_user='root',
+            mysql_user_pass=config.get(server2,'mysql_root_pass')
+        ).dump("{0}_{1}_represet_autogen.sh".format(server2,server1))
+
+        Template("""#!/bin/sh
+
+set -e
+set -x
+
+# run sql on slave
+scp {{server1}}:/tmp/run_on_{{server2}}_autogen.sql .
+ssh {{server1}} 'rm -f /tmp/run_on_{{server2}}_autogen.sql'
+
+# run sql on master
+scp {{server2}}:/tmp/run_on_{{server1}}_autogen.sql .
+ssh {{server2}} 'rm -f /tmp/run_on_{{server1}}_autogen.sql'
+
+scp run_on_{{server2}}_autogen.sql {{server1}}_{{server2}}_represet_autogen.sh {{server2}}:/tmp
+scp run_on_{{server1}}_autogen.sql {{server2}}_{{server1}}_represet_autogen.sh {{server1}}:/tmp
+
+""").stream(
+    server1=server1,
+    server2=server2,
+).dump(
+    "{0}_{1}_swap_sql_autogen.sh".format(server1,server2)
+)
+
+        t5 = Template("""#!/bin/sh
+
+ssh {{serverX}} 'cd /tmp && sh -x {{serverY}}_{{serverX}}_represet_autogen.sh; rm {{serverY}}_{{serverX}}_represet_autogen.sh'
+
+""")
+
+        t5.stream( serverX=server1, serverY=server2 ).dump( "{0}_{1}_represet_controll_autogen.sh".format(server1,server2) )
+        t5.stream( serverX=server2, serverY=server1 ).dump( "{1}_{0}_represet_controll_autogen.sh".format(server1,server2) )
+
+    for s in sorted(main_script_list):
+        print "sh -x %s" % s
+
+##############################
+
 def remote_logging_setup():
 
     scrTmplFile='remote_logging_setup_autogen.sh'
@@ -2485,6 +2656,7 @@ parser.add_argument("-f34", "--mySQLShowSlaveStatus", help="mySQLShowSlaveStatus
 parser.add_argument("-f35", "--mySQLCheckReplicationCheckTable", help="mySQLCheckReplicationCheckTable", action="store_true")
 parser.add_argument("-f36", "--mySQLCheckConnectivity", help="mySQLCheckConnectivity", action="store_true")
 parser.add_argument("-f37", "--mySQLAdminFlushHosts", help="mySQLAdminFlushHosts", action="store_true")
+parser.add_argument("-f70", "--mySQLmasterrep", help="mySQLmasterrep, mysql_master_master_replication_setup()", action="store_true")
 parser.add_argument("-f38", "--apacheEnableLogging", help="apacheEnableLogging", action="store_true")
 parser.add_argument("-f39", "--apacheTailLog", help="apacheTailLog", action="store_true")
 parser.add_argument("-f40", "--showFirewall", help="showFirewall", action="store_true")
@@ -2555,6 +2727,7 @@ if args.mySQLShowSlaveStatus: mySQLShowSlaveStatus()
 if args.mySQLCheckReplicationCheckTable: mySQLCheckReplicationCheckTable()
 if args.mySQLCheckConnectivity: mySQLCheckConnectivity()
 if args.mySQLAdminFlushHosts: mySQLAdminFlushHosts()
+if args.mySQLmasterrep: mysql_master_master_replication_setup()
 if args.apacheEnableLogging: apacheEnableLogging()
 if args.apacheTailLog: apacheTailLog()
 if args.showFirewall: showFirewall()
