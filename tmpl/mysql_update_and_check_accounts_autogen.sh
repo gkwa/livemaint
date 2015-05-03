@@ -79,12 +79,15 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE streambox_live.user SET pass='{{streambox_live_sls_exe_pass}}' WHERE login='sls_exe';
 UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE login='admin';
 
+-- slscron_mysql_user
+-- slscron_mysql_pass
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slscron_mysql_user') ON DUPLICATE KEY UPDATE `name` = `name`;
 UPDATE streambox_live.slsconfig SET value='sls_cron' WHERE name='slscron_mysql_user';
-
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slscron_mysql_pass') ON DUPLICATE KEY UPDATE `name` = `name`;
 UPDATE streambox_live.slsconfig SET value='{{mysql_sls_cron_pass}}' WHERE name='slscron_mysql_pass';
 
+-- slsreport_mysql_user
+-- slsreport_mysql_pass
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slsreport_mysql_user') ON DUPLICATE KEY UPDATE `name` = `name`;
 UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_user}}' WHERE name='slsreport_mysql_user';
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slsreport_mysql_pass') ON DUPLICATE KEY UPDATE `name` = `name`;
