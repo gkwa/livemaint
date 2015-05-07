@@ -1,0 +1,3 @@
+[submodule "lsweb"]
+	path = lsweb
+	url = ssh://git@gitlab.com/streambox/lsweb
