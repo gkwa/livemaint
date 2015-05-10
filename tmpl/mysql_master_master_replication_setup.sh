@@ -2,9 +2,9 @@
 
 : <<COMMENTBLOCK
 master master replication
+http://randymelder.com/2012/04/26/how-i-setup-mysql-multi-master-replication/
 https://www.linode.com/docs/databases/mysql/mysql-master-master-replication
 http://www.lefred.be/node/45
-http://randymelder.com/2012/04/26/how-i-setup-mysql-multi-master-replication/
 
 master master is not the same as multi-master.  Multi-master replication:
 http://dev.mysql.com/doc/refman/5.6/en/mysql-cluster-replication-multi-master.html
@@ -185,7 +185,7 @@ show grants for '{{mysql_repl_username}}'@'{other_server_ip}';
 -- http://stackoverflow.com/a/5016587/1495086
 -- don't do this in production, but helpful for debug to give full
 -- rights to user:
-GRANT ALL PRIVILEGES ON streambox_live.* TO '{{mysql_repl_username}}'@'%' WITH GRANT OPTION;
+-- GRANT ALL PRIVILEGES ON streambox_live.* TO '{{mysql_repl_username}}'@'%' WITH GRANT OPTION;
 
 flush privileges;
 
