@@ -185,7 +185,7 @@ show grants for '{{mysql_repl_username}}'@'{other_server_ip}';
 -- http://stackoverflow.com/a/5016587/1495086
 -- don't do this in production, but helpful for debug to give full
 -- rights to user:
-GRANT ALL PRIVILEGES ON streambox_live.* TO '{{mysql_repl_username}}'@'%' WITH GRANT OPTION;
+-- GRANT ALL PRIVILEGES ON streambox_live.* TO '{{mysql_repl_username}}'@'%' WITH GRANT OPTION;
 
 flush privileges;
 
