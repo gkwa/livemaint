@@ -1507,9 +1507,9 @@ parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
         t=Template("%s_{{server}}.sh" % (scrbase))
         Template("""
 
-scp {{script}} {{server}}:/tmp
+scp -o ConnectTimeout=5 {{script}} {{server}}:/tmp
 {
-	ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}'
+	ssh -o ConnectTimeout=5 {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}'
 } >{{scrbase}}_{{server}}.log 2>&1
 
 """).stream(script=scr,scrbase=scrbase,server=server).dump(t.render(server=server))
