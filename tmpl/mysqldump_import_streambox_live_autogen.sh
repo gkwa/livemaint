@@ -14,7 +14,7 @@ cd /tmp
 
 
 
-zip=mysql_dump_vN_20150419_streambox_live_1429476329.sql.zip
+zip=mysql_dump_vN_20150511_streambox_live_1431383736.sql.zip
 
 sqlfile_streambox_live=$(echo $zip| sed -e 's,\.zip,,')
 sqlfile_mysql=$(echo $sqlfile_streambox_live| sed -e 's,streambox_live,mysql,')
