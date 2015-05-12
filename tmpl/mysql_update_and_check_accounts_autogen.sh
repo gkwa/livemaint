@@ -25,10 +25,10 @@ then
     cat <<'__EOT__' >{{scrBase}}.sql
 
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root';
-	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron';
+	UPDATE mysql.User SET Password='{{mysql_sls_cron_pass}}' WHERE User='sls_cron';
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php';
-	UPDATE mysql.User SET Password=PASSWORD('{{slsreport_mysql_pass}}') WHERE User='sls_report';
-	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_repl_pass}}') WHERE User='sls_repl';
+	UPDATE mysql.User SET Password='{{slsreport_mysql_pass}}' WHERE User='sls_report';
+	UPDATE mysql.User SET Password='{{mysql_sls_repl_pass}}' WHERE User='sls_repl';
 
 	-- for comment on stdout
 	SELECT 'mysql.User' AS '';
@@ -79,12 +79,15 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE streambox_live.user SET pass='{{streambox_live_sls_exe_pass}}' WHERE login='sls_exe';
 UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE login='admin';
 
+-- slscron_mysql_user
+-- slscron_mysql_pass
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slscron_mysql_user') ON DUPLICATE KEY UPDATE `name` = `name`;
 UPDATE streambox_live.slsconfig SET value='sls_cron' WHERE name='slscron_mysql_user';
-
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slscron_mysql_pass') ON DUPLICATE KEY UPDATE `name` = `name`;
 UPDATE streambox_live.slsconfig SET value='{{mysql_sls_cron_pass}}' WHERE name='slscron_mysql_pass';
 
+-- slsreport_mysql_user
+-- slsreport_mysql_pass
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slsreport_mysql_user') ON DUPLICATE KEY UPDATE `name` = `name`;
 UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_user}}' WHERE name='slsreport_mysql_user';
 INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slsreport_mysql_pass') ON DUPLICATE KEY UPDATE `name` = `name`;
