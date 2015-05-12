@@ -25,10 +25,10 @@ then
     cat <<'__EOT__' >{{scrBase}}.sql
 
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root';
-	UPDATE mysql.User SET Password='{{mysql_sls_cron_pass}}' WHERE User='sls_cron';
+	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron';
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php';
-	UPDATE mysql.User SET Password='{{slsreport_mysql_pass}}' WHERE User='sls_report';
-	UPDATE mysql.User SET Password='{{mysql_sls_repl_pass}}' WHERE User='sls_repl';
+	UPDATE mysql.User SET Password=PASSWORD('{{slsreport_mysql_pass}}') WHERE User='sls_report';
+	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_repl_pass}}') WHERE User='sls_repl';
 
 	-- for comment on stdout
 	SELECT 'mysql.User' AS '';
