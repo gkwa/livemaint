@@ -122,8 +122,6 @@ config['mysqld']['expire_logs_days'] 	     = 10
 config['mysqld']['log_slave_updates'] 	     = 1
 config['mysqld']['auto-increment-increment'] = 2
 config['mysqld']['auto-increment-offset']    = 1
-#config['mysqld']['bind-address']             = getip()
-config['mysqld']['bind-address']             = '0.0.0.0'
 
 config['mysqld']['replicate-do-db']          = '{{database_to_replicate}}'
 #config['mysqld']['replicate-do-db']          = 'mysql'
