@@ -79,20 +79,30 @@ SET SQL_SAFE_UPDATES = 0;
 UPDATE streambox_live.user SET pass='{{streambox_live_sls_exe_pass}}' WHERE login='sls_exe';
 UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE login='admin';
 
+-- ------------------------------
+-- Insert to slsconfig only if the values don't already exist
+-- ------------------------------
+-- FIXME: this seems way too convoluted
+-- https://tricksbynazir.wordpress.com/2013/12/26/mysql-insert-record-if-not-exists-in-table/
+
+SET SQL_SAFE_UPDATES = 0;
+
 -- slscron_mysql_user
 -- slscron_mysql_pass
-INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slscron_mysql_user') ON DUPLICATE KEY UPDATE `name` = `name`;
-UPDATE streambox_live.slsconfig SET value='sls_cron' WHERE name='slscron_mysql_user';
-INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slscron_mysql_pass') ON DUPLICATE KEY UPDATE `name` = `name`;
-UPDATE streambox_live.slsconfig SET value='{{mysql_sls_cron_pass}}' WHERE name='slscron_mysql_pass';
+INSERT INTO slsconfig (name, value, dt_update) SELECT * FROM (SELECT 'slscron_mysql_user', 'sls_cron', NOW()) AS tmp
+WHERE NOT EXISTS (SELECT name FROM slsconfig WHERE name='slscron_mysql_user') LIMIT 1;
+INSERT INTO slsconfig (name, value, dt_update) SELECT * FROM (SELECT 'slscron_mysql_pass', '{{mysql_sls_cron_pass}}', NOW()) AS tmp
+WHERE NOT EXISTS (SELECT name FROM slsconfig WHERE name='slscron_mysql_pass') LIMIT 1;
+UPDATE slsconfig SET value='{{mysql_sls_cron_pass}}' WHERE name='slscron_mysql_pass';
 
 -- slsreport_mysql_user
 -- slsreport_mysql_pass
-INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slsreport_mysql_user') ON DUPLICATE KEY UPDATE `name` = `name`;
-UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_user}}' WHERE name='slsreport_mysql_user';
-INSERT INTO streambox_live.slsconfig (`name`,`value`) VALUES (`name`,'slsreport_mysql_pass') ON DUPLICATE KEY UPDATE `name` = `name`;
-UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_pass}}' WHERE name='slsreport_mysql_pass';
 
+INSERT INTO slsconfig (name, value, dt_update) SELECT * FROM (SELECT 'slsreport_mysql_user', 'sls_report', NOW()) AS tmp
+WHERE NOT EXISTS (SELECT name FROM slsconfig WHERE name='slsreport_mysql_user') LIMIT 1;
+INSERT INTO slsconfig (name, value, dt_update) SELECT * FROM (SELECT 'slsreport_mysql_pass', '{{slsreport_mysql_pass}}', NOW()) AS tmp
+WHERE NOT EXISTS (SELECT name FROM slsconfig WHERE name='slsreport_mysql_pass') LIMIT 1;
+UPDATE slsconfig SET value='{{slsreport_mysql_pass}}' WHERE name='slsreport_mysql_pass';
 
 SELECT PASSWORD('{{mysql_sls_php_pass}}');
 
