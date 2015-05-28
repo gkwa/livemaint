@@ -193,25 +193,26 @@ SET SQL_SAFE_UPDATES = 0;
 delete from mysql.user WHERE User = 'sls_repl';
 
 -- Add user back in
-GRANT REPLICATION SLAVE,replication client ON *.* TO '{{mysql_repl_username}}'@'{other_server_ip}' IDENTIFIED BY '{{mysql_repl_pass}}';
-show grants for '{{mysql_repl_username}}'@'{other_server_ip}';
+-- GRANT REPLICATION SLAVE,replication client ON *.* TO '{{mysql_repl_username}}'@'{other_server_ip}' IDENTIFIED BY '{{mysql_repl_pass}}';
+-- show grants for '{{mysql_repl_username}}'@'{other_server_ip}';
 
 -- http://stackoverflow.com/a/5016587/1495086
 -- don't do this in production, but helpful for debug to give full
 -- rights to user:
 -- GRANT ALL PRIVILEGES ON streambox_live.* TO '{{mysql_repl_username}}'@'%' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO '{{mysql_repl_username}}'@'%' IDENTIFIED BY '{{mysql_repl_pass}}' WITH GRANT OPTION;
 
-flush privileges;
+-- flush privileges;
 
 -- # Localhost
 -- create user '{{mysql_repl_username}}'@'localhost' IDENTIFIED BY '{{mysql_repl_password}}';
--- grant all privileges on *.* to '{{mysql_repl_username}}'@'localhost' with grant option;
+grant all privileges on *.* to '{{mysql_repl_username}}'@'localhost' IDENTIFIED BY '{{mysql_repl_pass}}' with grant option;
 
 -- # Everywhere
 -- create user '{{mysql_repl_username}}'@'%' identified by '{{mysql_repl_password}}';
--- grant all privileges on *.* to '{{mysql_repl_username}}'@'%' with grant option;
+grant all privileges on *.* to '{{mysql_repl_username}}'@'%' with grant option;
 
--- flush privileges;
+flush privileges;
 """.format(other_server_ip=socket.gethostbyname("{{opposing_server_ip_not_mine}}"))
 
 with open("otkqummaiujtea.sql", "w") as w:
