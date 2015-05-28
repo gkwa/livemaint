@@ -19,8 +19,9 @@ trap "rm -f /tmp/myini.py otkqummaiujtea.sql yw0gf4bxxntqaw.sql; exit" HUP INT Q
 
 cd /tmp
 
+# install easy_install, then pip
 pip --version || {
-    # install easy_install, then pip
+
     wget https://bootstrap.pypa.io/ez_setup.py -O - | python
     easy_install pip
 }
