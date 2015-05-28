@@ -24,8 +24,10 @@ pip --version || {
     wget https://bootstrap.pypa.io/ez_setup.py -O - | python
     easy_install pip
 }
-export C_INCLUDE_PATH=/c/cygwin64/usr/include/python2.7:$C_INCLUDE_PATH
-export CPLUS_INCLUDE_PATH=/c/cygwin64/usr/include/python2.7:$CPLUS_INCLUDE_PATH
+set +u
+export C_INCLUDE_PATH=/usr/include/python2.7:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=/usr/include/python2.7:$CPLUS_INCLUDE_PATH
+set -u
 pip install netifaces
 pip install configobj
 
