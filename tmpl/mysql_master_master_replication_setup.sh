@@ -127,6 +127,9 @@ except Exception as e:
 
 config['mysqld']['server_id'] 		     = {{mysql_server_id}}
 config['mysqld']['log_bin'] 		     = 'mysql-bin.log'
+config['mysqld']['binlog_format']	     = 'ROW'
+config['mysqld']['slave-skip-errors']	     = '1050,1062,1032'
+config['mysqld']['sync_binlog']             = 1
 config['mysqld']['log_bin_index'] 	     = 'mysql-bin.log.index'
 config['mysqld']['relay_log'] 		     = 'mysql-relay-bin'
 config['mysqld']['relay_log_index'] 	     = 'mysql-relay-bin.index'
