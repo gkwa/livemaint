@@ -19,8 +19,15 @@ trap "rm -f /tmp/myini.py otkqummaiujtea.sql yw0gf4bxxntqaw.sql; exit" HUP INT Q
 
 cd /tmp
 
-easy_install configobj
-easy_install netifaces
+pip --version || {
+    # install easy_install, then pip
+    wget https://bootstrap.pypa.io/ez_setup.py -O - | python
+    easy_install pip
+}
+export C_INCLUDE_PATH=/c/cygwin64/usr/include/python2.7:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=/c/cygwin64/usr/include/python2.7:$CPLUS_INCLUDE_PATH
+pip install netifaces
+pip install configobj
 
 ######################################################################
 #
