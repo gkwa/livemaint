@@ -3,10 +3,12 @@
 # mysqldbcompare is provided by mysql.utilties.  It was a bit silly to
 # install that on 64bit windows:
 #
-# choco install vcredist2013 -yes -forcex86
+# fails from wrong sha1 # choco install vcredist2013 -yes -forcex86
+# powershell -noprofile -executionpolicy unrestricted -command "(new-object System.Net.WebClient).DownloadFile('http://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x86.exe','vcredist_x86.exe')" && msiexec /qn /i vcredist_x86.exe
 # choco install vcredist2013 -yes -force
 # choco install mysql.workbench -yes -forcex86
 # choco install mysql.utilities -yes -forcex86
+
 
 unset HISTFILE
 
