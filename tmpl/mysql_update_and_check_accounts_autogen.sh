@@ -1,5 +1,23 @@
 #!/bin/sh
 
+: '
+
+This script has problems:
+
+* it assumes credentials for these users (sls_cron, sls_repl, etc) are
+  the same for all the replication servers.
+
+Instead of this:
+
+SET SQL_SAFE_UPDATES = 0;
+UPDATE streambox_live.transporter SET server_password=TO_BASE64("{{mysql_sls_repl_pass}}") WHERE transporter.server_login="sls_repl";
+
+Every server in the replication ring has a transporter table with
+sls_repl / password for each server.
+
+'
+
+
 # cron
 # php
 # repl
@@ -104,6 +122,15 @@ WHERE NOT EXISTS (SELECT name FROM streambox_live.slsconfig WHERE name='slsrepor
 UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_pass}}' WHERE name='slsreport_mysql_pass';
 
 SELECT PASSWORD('{{mysql_sls_php_pass}}');
+
+--
+
+-- Error Code: 1175. You are using safe update mode and you tried to
+-- update a table without a WHERE that uses a KEY column To disable safe
+-- mode, toggle the option in Preferences -> SQL Queries and
+-- reconnect. 0.000 sec
+SET SQL_SAFE_UPDATES = 0;
+UPDATE streambox_live.transporter SET server_password=TO_BASE64('{{mysql_sls_repl_pass}}') WHERE transporter.server_login='sls_repl';
 
 --
 
