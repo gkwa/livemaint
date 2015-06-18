@@ -768,6 +768,55 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def showGhosts():
+
+    scrTmplFile='mysql_show_ghosts_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    allLogFile="%s_all.log" %(scrBase)
+    allScr="%s_all.sh" %(scrBase)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    t2 = Template("""
+scp {{script}} {{server}}:/tmp
+ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
+dos2unix --quiet {{scrBase}}_{{server}}.log
+""")
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        tmpl.stream(
+            database='streambox_live',
+            scrBase=scrBase,mysql_user='root',
+            mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
+        t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    Template("""
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
 def checkMySQLCharacterSet():
 
     scrTmplFile='mysql_check_character_set_autogen.sh'
@@ -2601,6 +2650,7 @@ parser.add_argument("-f59", "--mysqlRemoveTempDBA", help="remove temporary mysql
 parser.add_argument("-f60", "--mysqlUserCredsUpdate", help="mysqlUserCredsUpdate", action="store_true")
 parser.add_argument("-f61", "--checkMySQLCharacterSet", help="checkMySQLCharacterSet", action="store_true")
 parser.add_argument("-f62", "--mysqlCheckTableSize", help="mysqlCheckTableSize", action="store_true")
+parser.add_argument("-f63", "--showGhosts", help="showGhosts", action="store_true")
 
 args = parser.parse_args()
 
@@ -2673,3 +2723,4 @@ if args.mysqlRemoveTempDBA: mysqlRemoveTempDBA()
 if args.mysqlUserCredsUpdate: mysqlUserCredsUpdate()
 if args.checkMySQLCharacterSet: checkMySQLCharacterSet()
 if args.mysqlCheckTableSize: mysqlCheckTableSize()
+if args.showGhosts: showGhosts()
