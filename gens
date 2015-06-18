@@ -777,12 +777,25 @@ def showGhosts():
     allLogFile="%s_all.log" %(scrBase)
     allScr="%s_all.sh" %(scrBase)
     uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+    uploadAndRunTmpl2=Template("mysql_clear_ghosts_{{server}}_controller_step2_autogen.sh")
 
-    t2 = Template("""
+    t2 = Template("""#!/bin/sh
+
 scp {{script}} {{server}}:/tmp
 ssh {{server}} 'sh /tmp/{{script}}; rm -f /tmp/{{script}}' >{{scrBase}}_{{server}}.log 2>&1
 dos2unix --quiet {{scrBase}}_{{server}}.log
+
 """)
+
+    t3 = Template("""#!/bin/sh
+
+scp streambox_live_clear_ghost_autogen.sql mysql_clear_ghosts_{{server}}_autogen.sh {{server}}:/tmp
+ssh {{server}} 'sh /tmp/mysql_clear_ghosts_{{server}}_autogen.sh; rm -f /tmp/mysql_clear_ghosts_{{server}}_autogen.sh /tmp/streambox_live_clear_ghost_autogen.sql' >streambox_live_clear_ghost_autogen_{{server}}.log 2>&1
+dos2unix --quiet mysql_clear_ghosts_{{server}}_autogen.log
+
+""")
+
+    t4=env.get_template('mysql_clear_ghosts_controller_autogen.sh')
 
     for server in servers:
         bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
@@ -791,10 +804,17 @@ dos2unix --quiet {{scrBase}}_{{server}}.log
             scrBase=scrBase,mysql_user='root',
             mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
         t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+        t3.stream(server=server).dump(uploadAndRunTmpl2.render(scrBase=scrBase,server=server))
+        t4.stream(
+            scrBase='streambox_live_clear_ghost_autogen',
+            mysql_user='root',
+            mysql_user_pass=config.get(server,'mysql_root_pass')).dump(
+                Template("""mysql_clear_ghosts_{{server}}_autogen.sh""").render(server=server)
+            )
 
     Template("""
 
-parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+parallel --progress --jobs 10 --no-notice sh ::: \\
 {% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
 {% endfor %}
 
@@ -808,12 +828,48 @@ parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
 
 dos2unix --quiet {{allLogFile}}
 
+sh create_sql_update_for_clear_ghost_autogen.sh
+
 """).stream(
     allLogFile=allLogFile,
     scrBase=scrBase,
     servers=servers).dump(allScr)
 
-    print "sh %s" % allScr
+    # step2
+    Template("""
+
+parallel --progress --jobs 10 --no-notice sh ::: \\
+{% for server in servers %}mysql_clear_ghosts_{{server}}_controller_step2_autogen.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{
+    {% for server in servers %}
+	echo "# {{server}}"
+	cat {{scrBase}}_{{server}}.log
+	echo
+    {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile='mysql_clear_ghosts_controller_step2_all_autogen.log',
+    scrBase='streambox_live_clear_ghost_autogen',
+    servers=servers).dump('mysql_clear_ghosts_controller_step2_all_autogen.sh')
+
+
+    Template("""#!/bin/sh
+
+python tmpl/mysql_construct_ghosts_clear_script_autogen.py --searchfile *.log >streambox_live_clear_ghost_autogen.sql
+
+""").stream().dump('create_sql_update_for_clear_ghost_autogen.sh')
+
+    print("sh %s" % allScr)
+    # print("# wait for %s to generate ./*.log and then run this:" % allScr)
+    # print("sh %s" % 'create_sql_update_for_clear_ghost_autogen.sh')
+    print("sh %s" % 'mysql_clear_ghosts_controller_step2_all_autogen.sh')
+    print("cat %s" % 'mysql_clear_ghosts_controller_step2_all_autogen.log')
+
 
 ##############################
 

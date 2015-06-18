@@ -79,6 +79,9 @@ CREATE temporary TABLE IF NOT EXISTS ghost_streams AS
 SELECT *
 FROM   ghost_streams;
 
+SELECT '# REALLY_UNLIKELY_STRING_FROM_DATABASE_FIELD #', file_id
+FROM   ghost_streams;
+
 __EOT__
 
 mysql \
