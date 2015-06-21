@@ -1079,7 +1079,7 @@ branchname=$(git symbolic-ref --short HEAD)
 }
 
 {
-    git diff --color --name-only d5a6b33..| xargs ls -t1 2>/dev/null
+    git diff --color --name-only fc180dc..| xargs ls -t1 2>/dev/null
 } | cpio -pamvd $dir/o
 
 cd $dir
