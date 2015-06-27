@@ -2545,6 +2545,85 @@ dos2unix --quiet {{allLogFile}}
 
 ##############################
 
+def reportdrmnhk():
+
+    ##############################
+    # Create remove script now too
+    ##############################
+
+    scrTmplFile='mysql_report_users_by_group_autogen.sh'
+    scrBase=os.path.splitext(scrTmplFile)[0]
+    bashScrTmpl=Template("{{scrBase}}_{{server}}.sh")
+    tmpl=env.get_template(scrTmplFile)
+    uploadAndRunTmpl=Template("{{scrBase}}_{{server}}_controller.sh")
+
+    search_drm='nhk%'
+
+    for server in servers:
+        bashScr=bashScrTmpl.render(scrBase=scrBase,server=server)
+        report_outfile='%s_nhk_autogen.csv' % server
+
+        outpathprefix_bash='/c/windows/temp/'
+        outpathprefix_mysql='c:/windows/temp/'
+
+        if 'Linux' == config.get(server,'machine_type'):
+            outpathprefix_bash='/tmp/'
+            outpathprefix_mysql='/tmp/'
+
+        tmpl.stream(
+            machine_type=config.get(server,'machine_type'),
+            scrBase=scrBase,
+            search_drm=search_drm,
+            mysql_user='root',
+            database='streambox_live',
+            report_outfile_path_bash= '%s%s' % (outpathprefix_bash,report_outfile),
+            report_outfile_path_mysql= '%s%s' % (outpathprefix_mysql,report_outfile),
+            mysql_user_pass=config.get(server,'mysql_root_pass')
+        ).dump(bashScr)
+
+        t3 = Template("""#!/bin/sh
+scp {{script}} {{server}}:/tmp
+{
+        ssh {{server}} sh -x /tmp/{{script}}
+        scp {{server}}:{{report_outfile_path_bash}} .
+        ssh {{server}} 'chown $(id -u):$(id -g) {{report_outfile_path_mysql}}||sudo chown $(id -u):$(id -g) {{report_outfile_path_mysql}}; rm -f {{report_outfile_path_bash}} /tmp/{{script}};'
+} >{{scrBase}}_{{server}}.log 2>&1
+""")
+        t3.stream(
+            scrBase=scrBase,
+            report_outfile_path_bash='%s%s' % (outpathprefix_bash, report_outfile),
+            report_outfile_path_mysql= '%s%s' % (outpathprefix_mysql,report_outfile),
+            script=bashScr,
+            server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
+
+    allScr="%s_all.sh" %(scrBase)
+    allLogFile="%s_all.log" %(scrBase)
+    Template("""#!/bin/sh
+
+parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
+{% for server in servers %}{{scrBase}}_{{server}}_controller.sh{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{% for server in servers %}dos2unix --quiet {{scrBase}}_{{server}}.log{% if not loop.last %} \\{% endif %}
+{% endfor %}
+
+{ {% for server in servers %}
+    cat {{scrBase}}_{{server}}.log
+    echo
+  {% endfor %}
+} >{{allLogFile}}
+
+dos2unix --quiet {{allLogFile}}
+
+""").stream(
+    allLogFile=allLogFile,
+    scrBase=scrBase,
+    servers=servers).dump(allScr)
+
+    print "sh %s" % allScr
+
+##############################
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-p", "--production", help="production", action="store_true")
@@ -2601,6 +2680,7 @@ parser.add_argument("-f59", "--mysqlRemoveTempDBA", help="remove temporary mysql
 parser.add_argument("-f60", "--mysqlUserCredsUpdate", help="mysqlUserCredsUpdate", action="store_true")
 parser.add_argument("-f61", "--checkMySQLCharacterSet", help="checkMySQLCharacterSet", action="store_true")
 parser.add_argument("-f62", "--mysqlCheckTableSize", help="mysqlCheckTableSize", action="store_true")
+parser.add_argument("-f63", "--reportdrmnhk", help="reportdrmnhk", action="store_true")
 
 args = parser.parse_args()
 
@@ -2673,3 +2753,4 @@ if args.mysqlRemoveTempDBA: mysqlRemoveTempDBA()
 if args.mysqlUserCredsUpdate: mysqlUserCredsUpdate()
 if args.checkMySQLCharacterSet: checkMySQLCharacterSet()
 if args.mysqlCheckTableSize: mysqlCheckTableSize()
+if args.reportdrmnhk: reportdrmnhk()
