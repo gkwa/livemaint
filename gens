@@ -870,7 +870,6 @@ python tmpl/mysql_construct_ghosts_clear_script_autogen.py --searchfile *.log >s
     print("sh %s" % 'mysql_clear_ghosts_controller_step2_all_autogen.sh')
     print("cat %s" % 'mysql_clear_ghosts_controller_step2_all_autogen.log')
 
-
 ##############################
 
 def checkMySQLCharacterSet():
