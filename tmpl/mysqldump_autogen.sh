@@ -51,7 +51,7 @@ tables=$(cat ${0}_tables_will_dump.txt|tr '\n' ' ')
 # dump all tables except tables in $exclude_list to .sql file
 mysqldump \
     --host=127.0.0.1 \
-    --lock-all-tables --compress --quick \
+    --single-transaction --compress --quick \
     --user={{mysql_user}} \
     --password='{{mysql_user_pass}}' \
     $database $tables >$basename_streambox_live.sql
@@ -60,7 +60,7 @@ mysqldump \
 mysqldump \
     --no-data \
     --host=127.0.0.1 \
-    --lock-all-tables --compress --quick \
+    --single-transaction --compress --quick \
     --user={{mysql_user}} \
     --password='{{mysql_user_pass}}' \
     $database $exclude_list >>$basename_streambox_live.sql
@@ -68,7 +68,7 @@ mysqldump \
 # dump the database mysql
 mysqldump \
     --host=127.0.0.1 \
-    --lock-all-tables --compress --quick \
+    --single-transaction --compress --quick \
     --user={{mysql_user}} \
     --password='{{mysql_user_pass}}' \
     mysql >>$basename_mysql.sql
