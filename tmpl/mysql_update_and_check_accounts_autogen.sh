@@ -42,11 +42,11 @@ then
 
     cat <<'__EOT__' >{{scrBase}}.sql
 
-	UPDATE mysql.User SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root';
-	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron';
-	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php';
-	UPDATE mysql.User SET Password=PASSWORD('{{slsreport_mysql_pass}}') WHERE User='sls_report';
-	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_repl_pass}}') WHERE User='sls_repl';
+	UPDATE mysql.User SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root' LIMIT 1;
+	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron' LIMIT 1;
+	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php' LIMIT 1;
+	UPDATE mysql.User SET Password=PASSWORD('{{slsreport_mysql_pass}}') WHERE User='sls_report' LIMIT 1;
+	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_repl_pass}}') WHERE User='sls_repl' LIMIT 1;
 
 	-- for comment on stdout
 	SELECT 'mysql.User' AS '';
@@ -66,11 +66,11 @@ else
 
     cat <<'__EOT__' >{{scrBase}}.sql
 
-	UPDATE mysql.user SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root';
-	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron';
-	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php';
-	UPDATE mysql.user SET Password=PASSWORD('{{slsreport_mysql_pass}}') WHERE User='sls_report';
-	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_repl_pass}}') WHERE User='sls_repl';
+	UPDATE mysql.user SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root' LIMIT 1;
+	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron' LIMIT 1;
+	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php' LIMIT 1;
+	UPDATE mysql.user SET Password=PASSWORD('{{slsreport_mysql_pass}}') WHERE User='sls_report' LIMIT 1;
+	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_repl_pass}}') WHERE User='sls_repl' LIMIT 1;
 
 	-- for comment on stdout
         SELECT 'mysql.user' AS '';
@@ -88,14 +88,8 @@ fi
 
 cat <<'__EOT__' >>{{scrBase}}.sql
 
--- Error Code: 1175. You are using safe update mode and you tried to
--- update a table without a WHERE that uses a KEY column To disable safe
--- mode, toggle the option in Preferences -> SQL Queries and
--- reconnect. 0.000 sec
-SET SQL_SAFE_UPDATES = 0;
-
-UPDATE streambox_live.user SET pass='{{streambox_live_sls_exe_pass}}' WHERE login='sls_exe';
-UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE login='admin';
+UPDATE streambox_live.user SET pass='{{streambox_live_sls_exe_pass}}' WHERE login='sls_exe' LIMIT 1;
+UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE login='admin' LIMIT 1;
 
 -- ------------------------------
 -- Insert to slsconfig only if the values don't already exist
@@ -103,7 +97,6 @@ UPDATE streambox_live.user SET pass='{{streambox_live_webui_admin_pass}}' WHERE 
 -- FIXME: this seems way too convoluted
 -- https://tricksbynazir.wordpress.com/2013/12/26/mysql-insert-record-if-not-exists-in-table/
 
-SET SQL_SAFE_UPDATES = 0;
 
 -- slscron_mysql_user
 -- slscron_mysql_pass
@@ -111,7 +104,7 @@ INSERT INTO streambox_live.slsconfig (name, value, dt_update) SELECT * FROM (SEL
 WHERE NOT EXISTS (SELECT name FROM streambox_live.slsconfig WHERE name='slscron_mysql_user') LIMIT 1;
 INSERT INTO streambox_live.slsconfig (name, value, dt_update) SELECT * FROM (SELECT 'slscron_mysql_pass', '{{mysql_sls_cron_pass}}', NOW()) AS tmp
 WHERE NOT EXISTS (SELECT name FROM streambox_live.slsconfig WHERE name='slscron_mysql_pass') LIMIT 1;
-UPDATE streambox_live.slsconfig SET value='{{mysql_sls_cron_pass}}' WHERE name='slscron_mysql_pass';
+UPDATE streambox_live.slsconfig SET value='{{mysql_sls_cron_pass}}' WHERE name='slscron_mysql_pass' LIMIT 1;
 
 -- slsreport_mysql_user
 -- slsreport_mysql_pass
@@ -119,7 +112,7 @@ INSERT INTO streambox_live.slsconfig (name, value, dt_update) SELECT * FROM (SEL
 WHERE NOT EXISTS (SELECT name FROM streambox_live.slsconfig WHERE name='slsreport_mysql_user') LIMIT 1;
 INSERT INTO streambox_live.slsconfig (name, value, dt_update) SELECT * FROM (SELECT 'slsreport_mysql_pass', '{{slsreport_mysql_pass}}', NOW()) AS tmp
 WHERE NOT EXISTS (SELECT name FROM streambox_live.slsconfig WHERE name='slsreport_mysql_pass') LIMIT 1;
-UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_pass}}' WHERE name='slsreport_mysql_pass';
+UPDATE streambox_live.slsconfig SET value='{{slsreport_mysql_pass}}' WHERE name='slsreport_mysql_pass' LIMIT 1;
 
 SELECT PASSWORD('{{mysql_sls_php_pass}}');
 
@@ -129,8 +122,7 @@ SELECT PASSWORD('{{mysql_sls_php_pass}}');
 -- update a table without a WHERE that uses a KEY column To disable safe
 -- mode, toggle the option in Preferences -> SQL Queries and
 -- reconnect. 0.000 sec
-SET SQL_SAFE_UPDATES = 0;
-UPDATE streambox_live.transporter SET server_password=TO_BASE64('{{mysql_sls_repl_pass}}') WHERE transporter.server_login='sls_repl';
+UPDATE streambox_live.transporter SET server_password=TO_BASE64('{{mysql_sls_repl_pass}}') WHERE transporter.server_login='sls_repl' LIMIT 1;
 
 --
 
