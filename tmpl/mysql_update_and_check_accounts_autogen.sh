@@ -42,6 +42,8 @@ then
 
     cat <<'__EOT__' >{{scrBase}}.sql
 
+	SET SQL_SAFE_UPDATES = 0;
+
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root';
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron';
 	UPDATE mysql.User SET Password=PASSWORD('{{mysql_sls_php_pass}}') WHERE User='sls_php';
@@ -65,6 +67,8 @@ else
     # Linux
 
     cat <<'__EOT__' >{{scrBase}}.sql
+
+	SET SQL_SAFE_UPDATES = 0;
 
 	UPDATE mysql.user SET Password=PASSWORD('{{mysql_user_pass}}') WHERE User='root';
 	UPDATE mysql.user SET Password=PASSWORD('{{mysql_sls_cron_pass}}') WHERE User='sls_cron';
