@@ -789,6 +789,7 @@ dos2unix --quiet {{scrBase}}_{{server}}.log
         tmpl.stream(
             scrBase=scrBase,
             mysql_user='root',
+            mysql_database='streambox_live',
             mysql_user_pass=config.get(server,'mysql_root_pass')).dump(bashScr)
         t2.stream(scrBase=scrBase,script=bashScr,server=server).dump(uploadAndRunTmpl.render(scrBase=scrBase,server=server))
 

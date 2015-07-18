@@ -6,6 +6,7 @@ trap "rm -f {{scrBase}}.sql; exit" HUP INT QUIT TERM EXIT
 
 cd /tmp
 cat << __EOT__ >{{scrBase}}.sql
+use {{mysql_database}};
 show variables like "character_set%";
 show variables like "collation%";
 
