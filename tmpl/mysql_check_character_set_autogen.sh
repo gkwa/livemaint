@@ -6,6 +6,9 @@ trap "rm -f {{scrBase}}.sql; exit" HUP INT QUIT TERM EXIT
 
 cd /tmp
 cat << __EOT__ >{{scrBase}}.sql
+
+-- https://dev.mysql.com/doc/refman/5.6/en/charset-connection.html
+
 use {{mysql_database}};
 show variables like "character_set%";
 show variables like "collation%";
