@@ -46,9 +46,7 @@ select * from decoders_routed_tmp;
 
 UPDATE decoder
 SET
-    is_routed = '',
-    ip = '',
-    port = ''
+    is_routed = ''
 WHERE
     decoder_id IN (SELECT
             decoder_id
