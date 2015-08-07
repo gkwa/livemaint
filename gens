@@ -1179,8 +1179,8 @@ parallel --progress --jobs 10 --no-notice --verbose sh ::: \\
         t=Template("%s_{{server}}.sh" % (scrbase))
         Template("""
 
-scp {{script}} o.tar.zip {{server}}:/tmp
-ssh {{server}} 'sh /tmp/{{script}}; rm -rf /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
+scp -o "StrictHostKeyChecking no" {{script}} o.tar.zip {{server}}:/tmp
+ssh -o "StrictHostKeyChecking no" {{server}} 'sh /tmp/{{script}}; rm -rf /tmp/{{script}}' >{{scrbase}}_{{server}}.log 2>&1
 dos2unix --quiet {{scrbase}}_{{server}}.log
 
 """).stream(script=scr2,scrbase=scrbase,server=server).dump(t.render(server=server))
