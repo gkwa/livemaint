@@ -1144,8 +1144,6 @@ du -sh o.tar.zip
     scr2=scrbase + '.sh'
     Template("""#!/bin/sh
 
-set -o errexit
-
 cd /tmp
 
 # rm -f o.tar.zip
@@ -1154,7 +1152,10 @@ rm -rf o
 
 unzip o.tar.zip
 tar mxf o.tar
+net stop slservice_db
+taskkill /F /IM SLS.exe
 robocopy o c:/ /e /s /w:1 /r:1
+net start slservice_db
 
 rm -f o.tar.zip
 rm -f o.tar
