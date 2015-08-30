@@ -1089,7 +1089,6 @@ dir=`pwd`
 
 
 
-deploy_brach='masterls'
 
 
 
@@ -1120,18 +1119,6 @@ fi
 
 
 
-# ##############################
-# Checkout branch $deploy_brach and then verify that I'm on branch
-# $deploy_brach
-# ##############################
-branchname=$(git symbolic-ref --short HEAD)
-[ $branchname != $deploy_brach ] && git checkout $deploy_brach
-
-branchname=$(git symbolic-ref --short HEAD)
-[ $branchname != $deploy_brach ] && {
-	echo "help!  I cant checkout $deploy_branch, quitting..."
-	exit 1
-}
 
 {
     git diff --color --name-only 2542b3d..| xargs ls -t1 2>/dev/null
