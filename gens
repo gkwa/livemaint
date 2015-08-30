@@ -1120,6 +1120,10 @@ fi
 
 
 
+# ##############################
+# Checkout branch $deploy_brach and then verify that I'm on branch
+# $deploy_brach
+# ##############################
 branchname=$(git symbolic-ref --short HEAD)
 [ $branchname != $deploy_brach ] && git checkout $deploy_brach
 
