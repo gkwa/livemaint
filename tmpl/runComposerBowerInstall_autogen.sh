@@ -2,17 +2,17 @@
 
 cd /tmp
 
-rm -f composer_update.bat
-rm -f bower_update.bat
+rm -f composer_install.bat
+rm -f bower_install.bat
 
-cat <<'__COMPOSER__' >composer_update.bat
+cat <<'__COMPOSER__' >composer_install.bat
 set PATH=%PROGRAMDATA%\composersetup\bin;%PATH%
 
 cd c:\Apache
-cmd /c composer update --ignore-platform-reqs
+cmd /c composer install --ignore-platform-reqs
 __COMPOSER__
 
-cat <<'__BOWER__' >bower_update.bat
+cat <<'__BOWER__' >bower_install.bat
 set PATH=%ProgramFiles%\nodejs;%PATH%
 set PATH=%APPDATA%\npm;%PATH%
 
@@ -23,8 +23,8 @@ set CI=true
 bower install
 __BOWER__
 
-echo "Running composer update"
-cmd /c composer_update.bat
+echo "Running composer install"
+cmd /c composer_install.bat
 
-echo "Running bower update"
-cmd /c bower_update.bat
+echo "Running bower install"
+cmd /c bower_install.bat
