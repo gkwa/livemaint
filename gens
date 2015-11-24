@@ -1121,7 +1121,7 @@ fi
 
 
 {
-    git diff --color --name-only 9fe5536..| xargs ls -t1 2>/dev/null
+    git diff --color --name-only 4f40df6..| xargs ls -t1 2>/dev/null
 } | cpio -pamvd $dir/o
 
 cd $dir
