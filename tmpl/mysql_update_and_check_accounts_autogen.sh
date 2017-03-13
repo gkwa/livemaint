@@ -31,6 +31,7 @@ cd /tmp
 
 cat <<'__EOT__' >$0.$$.tmp
 sed -i.bak -e 's,^mysql.default_password.*=.*,mysql.default_password = {{mysql_sls_php_pass}},' /c/php/php.ini
+sed -i.bak -e 's,^mysqli.default_pw.*=.*,mysqli.default_pw = {{mysql_sls_php_pass}},' /c/php/php.ini
 net stop apache2.4
 net start apache2.4
 __EOT__
